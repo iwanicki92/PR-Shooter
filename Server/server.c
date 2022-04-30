@@ -5,6 +5,7 @@
 #include "server_receive.h"
 #include "server_mutex.h"
 #include "server_array.h"
+#include "server_queue.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -19,19 +20,15 @@ typedef struct {
 } Threads;
 
 Threads threads;
-// TODO make SynchronizedQueue
-SynchronizedArray received_messages;
+SynchronizedQueue received_messages;
 static Dealocator dealocator;
 static bool stopped = true;
-pthread_mutex_t stop_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t stop_mutex;
 
 int startListeningThread();
 int startSendingThread();
-void stopListeningThread();
-void stopSendingThread();
 void stopReceivingThreads();
 void clearReceivedMessages();
-void clearOutgoingMessages();
 void clearActiveClients();
 void clearConnectedClients();
 void clearEverything();
@@ -41,14 +38,18 @@ int runServer(Dealocator dealocator_function) {
     dealocator = dealocator_function;
     stopped = false;
     initMutex(&stop_mutex);
-    received_messages = arraySyncCreate(sizeof(IncomingMessage), 16);
+    received_messages = queueSyncCreate(sizeof(IncomingMessage));
     threads.clients = arraySyncCreate(sizeof(Client), 16);
     if(startListeningThread() != 0) {
+        stopped = true;
         clearEverything();
         return 1;
     }
     if(startSendingThread() != 0) {
-        stopListeningThread();
+        lockMutex(&stop_mutex);
+        stopped = true;
+        unlockMutex(&stop_mutex);
+        pthread_join(threads.listening_thread, NULL);
         stopReceivingThreads();
         clearEverything();
         return 2;
@@ -57,8 +58,8 @@ int runServer(Dealocator dealocator_function) {
 }
 
 int stopServer() {
-    stopListeningThread();
-    stopSendingThread();
+    pthread_join(threads.listening_thread, NULL);
+    pthread_join(threads.sending_thread, NULL);
     stopReceivingThreads();
     clearEverything();
     return 0;
@@ -135,37 +136,33 @@ int startSendingThread() {
     return err;
 }
 
-void stopListeningThread() {
-    lockMutex(&stop_mutex);
-    stopped = true;
-    unlockMutex(&stop_mutex);
-    pthread_join(threads.listening_thread, NULL);
-}
-
-void stopSendingThread() {
-    
-}
-
 void stopReceivingThreads() {
     arrayLock(&threads.clients);
     Array* client_array = &threads.clients.array;
     size_t size = arraySize(client_array);
     pthread_t* thread_ids = malloc(sizeof(pthread_t) * size);
+    // set status to STOP for every client
     for(size_t i = 0; i < size; ++i) {
         Client* client = arrayUnsafeGetItem(client_array, i);
         client->status = STOP;
         thread_ids[i] = client->thread_id;
     }
     arrayUnlock(&threads.clients);
+    // wait until all threads exit/join
     for(size_t i = 0; i < size; ++i) {
         pthread_join(thread_ids[i], NULL);
     }
     free(thread_ids);
 }
 
-void clearReceivedMessages() {}
-void clearOutgoingMessages() {}
-void clearActiveClients() {}
+void clearReceivedMessages() {
+    queueSyncDestroy(&received_messages);
+}
+
+void clearActiveClients() {
+
+}
+
 void clearConnectedClients() {
     arraySyncDestroy(&threads.clients);
 }

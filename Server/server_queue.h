@@ -12,7 +12,7 @@ typedef struct {
     QueueNode* first;
     QueueNode* last;
     pthread_mutex_t* mutex;
-    const size_t element_size;
+    size_t element_size;
 } SynchronizedQueue;
 
 // locks queue for other threads until unlocked

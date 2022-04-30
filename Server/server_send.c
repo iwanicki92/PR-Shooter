@@ -3,9 +3,14 @@
 #include "server_mutex.h"
 #include <unistd.h>
 
-// to_everyone.data == NULL if no message
+// to_everyone.data == NULL if there is no message
 Message to_everyone = {.size = 0, .data = NULL};
 static pthread_mutex_t mutex;
+
+
+void clearOutgoingMessages() {
+
+}
 
 void sendToEveryone(Message message) {
     lockMutex(&mutex);
