@@ -7,6 +7,7 @@ struct QueueNode;
 typedef struct QueueNode QueueNode;
 
 // Each queue created with queueSyncCreate needs to be destroyed by queueSyncDestroy
+// don't use members directly in multi-threaded application
 typedef struct {
     QueueNode* first;
     QueueNode* last;

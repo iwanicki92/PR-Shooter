@@ -26,28 +26,18 @@ void* getIndexAddress(Array* array, size_t index) {
     return (char*)array->ptr_array + index * array->sizeof_item;
 }
 
-SynchronizedArray arraySyncGetNewArray(size_t sizeof_item, size_t starting_item_capacity) {
-    SynchronizedArray syncArray = {.array = arrayGetNewArray(sizeof_item, starting_item_capacity),
+SynchronizedArray arraySyncCreate(size_t sizeof_item, size_t starting_item_capacity) {
+    SynchronizedArray syncArray = {.array = arrayCreate(sizeof_item, starting_item_capacity),
                                     .mutex = malloc(sizeof(pthread_mutex_t))};
     initRecursiveMutex(syncArray.mutex);
     return syncArray;
 }
 
-Array arrayGetNewArray(size_t sizeof_item, size_t starting_item_capacity) {
+Array arrayCreate(size_t sizeof_item, size_t starting_item_capacity) {
     Array array = {.size = 0, .sizeof_item = sizeof_item,
                     .capacity = starting_item_capacity,
                     .ptr_array = malloc(array.sizeof_item * array.capacity)};
     return array;
-}
-
-size_t arraySyncPushBack(SynchronizedArray* array, void* item) {
-    arrayLock(array);
-#if (defined PRINT_DEBUG && PRINT_DEBUG > 2)
-    printf("Sync array push back\n");
-#endif
-    size_t index = arrayPushBack(&array->array, item);
-    arrayUnlock(array);
-    return index;
 }
 
 void resize(Array* array, size_t capacity) {
@@ -62,7 +52,17 @@ void resize(Array* array, size_t capacity) {
     array->ptr_array = new_ptr;
 }
 
-size_t arrayPushBack(Array* array, void* item) {
+size_t arraySyncPushBack(SynchronizedArray* array,  const void* item) {
+    arrayLock(array);
+#if (defined PRINT_DEBUG && PRINT_DEBUG > 2)
+    printf("Sync array push back\n");
+#endif
+    size_t index = arrayPushBack(&array->array, item);
+    arrayUnlock(array);
+    return index;
+}
+
+size_t arrayPushBack(Array* array, const void* item) {
     size_t index = array->size;
     if(index >= array->capacity) {
         resize(array, array->capacity * 2);

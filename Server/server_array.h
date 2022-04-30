@@ -5,6 +5,8 @@
 
 typedef void (*Consumer)(void*);
 
+// Each array or SynchronizedArray created with queueCreate or queueSyncCreate
+// needs to be destroyed by queueDestroy or queueSyncDestroy
 typedef struct {
     // number of items
     size_t size;
@@ -24,12 +26,12 @@ typedef struct {
 // locks array for other threads until unlocked
 void arrayLock(SynchronizedArray* array);
 void arrayUnlock(SynchronizedArray* array);
-SynchronizedArray arraySyncGetNewArray(size_t sizeof_item, size_t starting_item_capacity);
-Array arrayGetNewArray(size_t sizeof_item, size_t starting_item_capacity);
+SynchronizedArray arraySyncCreate(size_t sizeof_item, size_t starting_item_capacity);
+Array arrayCreate(size_t sizeof_item, size_t starting_item_capacity);
 // copies array.sizeof_item bytes from item into array.ptr_array starting at past the last element(array + size * sizeof_item)
 // returns index of pushed element
-size_t arraySyncPushBack(SynchronizedArray* array, void* item);
-size_t arrayPushBack(Array* array, void* item);
+size_t arraySyncPushBack(SynchronizedArray* array, const void* item);
+size_t arrayPushBack(Array* array, const void* item);
 // not thread safe! Only one thread can operate on Array during this function.
 // after destroying Array can't be used before initializing again
 void arraySyncDestroy(SynchronizedArray* array);

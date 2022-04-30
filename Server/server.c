@@ -41,8 +41,8 @@ int runServer(Dealocator dealocator_function) {
     dealocator = dealocator_function;
     stopped = false;
     initMutex(&stop_mutex);
-    received_messages = arraySyncGetNewArray(sizeof(IncomingMessage), 16);
-    threads.clients = arraySyncGetNewArray(sizeof(Client), 16);
+    received_messages = arraySyncCreate(sizeof(IncomingMessage), 16);
+    threads.clients = arraySyncCreate(sizeof(Client), 16);
     if(startListeningThread() != 0) {
         clearEverything();
         return 1;
