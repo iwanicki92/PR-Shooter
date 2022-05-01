@@ -11,7 +11,7 @@ Dodatkowe argumenty by zmienić działanie make:
 - DEBUG=FALSE wyłącza opcje pomagające przy debugowaniu głównie dodatkowe opcje kompilatora do sprawdzania czy są wycieki pamięci albo dostęp do niealokowanej pamięci.  
 - EXTENDED_FLAGS=TRUE włącza mnóstwo dodatkowych ostrzeżeń kompilatora i traktuje większość jako błędy.  
 - PRINT_DEBUG=x gdzie 'x' to liczba. Wyświetla dodatkowe informacje w zależności od x aktualnie:  
-    - x=0 - brak dodatkowych informacji  
+    - x=? - jeżeli PRINT_DEBUG jest zdefiniowany to wypisuje id nowo tworzonych wątków i przez kogo
     - x=1 - wypisuje informacje podczas blokowania/odblokowywania mutexów(wątek i mutex)  
     - x=2 - wypisuje dodatkowo zawartość tablicy synchronicznej podczas blokowania dostępu do niej  
     - x=3 - wypisuje dodatkowo informacje o dostępie do synchronicznej tablicy(tylko niektóre funkcje)  
