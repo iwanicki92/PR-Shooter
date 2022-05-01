@@ -58,6 +58,7 @@ int main() {
         const std::string& string = test_strings[index];
         unsigned char* buf = new unsigned char[string.length()];
         string.copy(reinterpret_cast<char*>(buf), string.length());
+        delete[] buf;
         sendToEveryone(Message{string.length(), buf});
         ++number_sent;
         

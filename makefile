@@ -23,8 +23,8 @@ dependencies=$(server_objs:%.o=%.d) $(host_objs:%.o=%.d)
 # add debug preprocesor defines and flags
 ifeq ($(DEBUG), TRUE)
 override CPPFLAGS+=$(foreach DEFINE,$(debug_defines),-D $(DEFINE))
-override CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
-override CXXFLAGS+=-fsanitize=address -fno-omit-frame-pointer
+override CFLAGS+=-fsanitize=address -fno-omit-frame-pointer -O0
+override CXXFLAGS+=-fsanitize=address -fno-omit-frame-pointer -O0
 endif
 
 # if EXTENDED_FLAGS=TRUE then add warning flags to CFLAGS(C) and CXXFLAGS(C++)
@@ -38,6 +38,9 @@ run: host
 
 rebuild: clean
 	$(MAKE) host
+
+all: host
+	@:
 
 host: $(bin_dir)/host
 	@:

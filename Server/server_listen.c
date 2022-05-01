@@ -13,6 +13,7 @@
 
 // copied from socket-server.c on enauczanie
 void* startListening(void* arg) {
+    printThreadDebugInformation("startListening()");
     int listenfd = 0, connfd = 0;
 	struct sockaddr_in serv_addr;
 

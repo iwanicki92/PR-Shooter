@@ -11,8 +11,8 @@ typedef struct {
     // number of items
     size_t size;
     // size of item in bytes
-    size_t sizeof_item;
-    // total item capacity of ptr_array. Or capacity * sizeof_item bytes;
+    size_t element_size;
+    // total item capacity of ptr_array. Or capacity * element_size bytes;
     size_t capacity;
     void* ptr_array;
 } Array;
@@ -26,9 +26,9 @@ typedef struct {
 // locks array for other threads until unlocked
 void arrayLock(SynchronizedArray* array);
 void arrayUnlock(SynchronizedArray* array);
-SynchronizedArray arraySyncCreate(size_t sizeof_item, size_t starting_item_capacity);
-Array arrayCreate(size_t sizeof_item, size_t starting_item_capacity);
-// copies array.sizeof_item bytes from item into array.ptr_array starting at past the last element(array + size * sizeof_item)
+SynchronizedArray arraySyncCreate(size_t element_size, size_t starting_item_capacity);
+Array arrayCreate(size_t element_size, size_t starting_item_capacity);
+// copies array.element_size bytes from item into array.ptr_array starting at past the last element(array + size * element_size)
 // returns index of pushed element
 size_t arraySyncPushBack(SynchronizedArray* array, const void* item);
 size_t arrayPushBack(Array* array, const void* item);
@@ -38,7 +38,7 @@ void arraySyncDestroy(SynchronizedArray* array);
 void arrayDestroy(Array* array);
 size_t arraySyncSize(SynchronizedArray* array);
 size_t arraySize(Array* array);
-// copies item to buf, buf needs to be at least array->sizeof_item bytes big
+// copies item to buf, buf needs to be at least array->element_size bytes big
 void arraySyncGetItem(SynchronizedArray* array, size_t index, void* buf);
 void arrayGetItem(Array* array, size_t index, void* buf);
 // use only between lockArray and unlockArray!
@@ -48,5 +48,7 @@ void* arraySyncUnsafeGetItem(SynchronizedArray* array, size_t index);
 void* arrayUnsafeGetItem(Array* array, size_t index);
 void arraySyncClear(SynchronizedArray* array);
 void arrayClear(Array* array);
+// remember to destroy your copy after use!
+Array arrayGetCopy(Array* array);
 
 #endif

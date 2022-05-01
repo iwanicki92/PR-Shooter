@@ -33,7 +33,14 @@ void clearActiveClients();
 void clearConnectedClients();
 void clearEverything();
 
+void printThreadDebugInformation(const char* msg) {
+    #ifdef PRINT_DEBUG
+    printf("Thread [%ld]: %s\n", pthread_self(), msg);
+    #endif
+}
+
 int runServer(Dealocator dealocator_function) {
+    printThreadDebugInformation("runServer()");
     srand(time(NULL));
     dealocator = dealocator_function;
     stopped = false;
@@ -58,6 +65,7 @@ int runServer(Dealocator dealocator_function) {
 }
 
 int stopServer() {
+    stopped = true;
     pthread_join(threads.listening_thread, NULL);
     pthread_join(threads.sending_thread, NULL);
     stopReceivingThreads();
@@ -76,6 +84,13 @@ Client getClient(size_t client_id) {
     Client client;
     arraySyncGetItem(&threads.clients, client_id, &client);
     return client;
+}
+
+Array getAllClients() {
+    arrayLock(&threads.clients);
+    Array copy = arrayGetCopy(&threads.clients.array);
+    arrayUnlock(&threads.clients);
+    return copy;
 }
 
 ThreadStatus getClientStatus(size_t client_id) {
@@ -169,7 +184,6 @@ void clearConnectedClients() {
 
 void clearEverything() {
     clearReceivedMessages();
-    clearOutgoingMessages();
     clearActiveClients();
     clearConnectedClients();
     destroyMutex(&stop_mutex);
