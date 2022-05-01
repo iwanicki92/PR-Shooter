@@ -126,13 +126,6 @@ bool isEmpty() {
     return false;
 }
 
-IncomingMessage takeMessage() {
-    size_t size = (size_t)(rand() % 80 + 20);
-    Message msg = {.size = size, .data = malloc(size)};
-    IncomingMessage inc_msg = {.message_type = MESSAGE, .client_id = 0, .message = msg };
-    return inc_msg;
-}
-
 int startListeningThread() {
     int err = pthread_create(&threads.listening_thread, NULL, startListening, NULL);
     if(err != 0) {
