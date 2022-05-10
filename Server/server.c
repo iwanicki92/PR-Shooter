@@ -20,7 +20,6 @@ typedef struct {
 } Threads;
 
 Threads threads;
-SynchronizedQueue received_messages;
 static Dealocator dealocator;
 static bool stopped = true;
 pthread_mutex_t stop_mutex;
@@ -28,7 +27,6 @@ pthread_mutex_t stop_mutex;
 int startListeningThread();
 int startSendingThread();
 void stopReceivingThreads();
-void clearReceivedMessages();
 void clearActiveClients();
 void clearConnectedClients();
 void clearEverything();
@@ -45,8 +43,8 @@ int runServer(Dealocator dealocator_function) {
     dealocator = dealocator_function;
     stopped = false;
     initMutex(&stop_mutex);
-    received_messages = queueSyncCreate(sizeof(IncomingMessage));
     threads.clients = arraySyncCreate(sizeof(Client), 16);
+    initReceivedQueue();
     if(startListeningThread() != 0) {
         stopped = true;
         clearEverything();
@@ -163,10 +161,6 @@ void stopReceivingThreads() {
     free(thread_ids);
 }
 
-void clearReceivedMessages() {
-    queueSyncDestroy(&received_messages);
-}
-
 void clearActiveClients() {
 
 }
@@ -176,7 +170,7 @@ void clearConnectedClients() {
 }
 
 void clearEverything() {
-    clearReceivedMessages();
+    destroyReceivedQueue();
     clearActiveClients();
     clearConnectedClients();
     destroyMutex(&stop_mutex);
