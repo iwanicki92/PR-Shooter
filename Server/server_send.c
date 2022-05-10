@@ -48,7 +48,9 @@ Message popMessageToEveryone() {
 void sendMessageTo(Message msg, Client client) {
     // TODO #2 write sending msg to client socket
 
-    send(client.socket, msg.data, msg.size, 0);
+    if(send(client.socket, msg.data, msg.size, 0) == -1) {
+        perror("Send() msg error!");
+    }
     freeOutgoingMessage(msg);
 }
 
