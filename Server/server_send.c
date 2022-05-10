@@ -2,6 +2,7 @@
 #include "server_internal.h"
 #include "server_mutex.h"
 #include "server_queue.h"
+#include <sys/socket.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +48,7 @@ Message popMessageToEveryone() {
 void sendMessageTo(Message msg, Client client) {
     // TODO #2 write sending msg to client socket
 
+    send(client.socket, msg.data, msg.size, 0);
     freeOutgoingMessage(msg);
 }
 
