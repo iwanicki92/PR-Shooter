@@ -21,7 +21,7 @@ void arrayUnlock(SynchronizedArray* array) {
     unlockMutex(array->mutex);
 }
 
-void* getIndexAddress(Array* array, size_t index) {
+static void* getIndexAddress(Array* array, size_t index) {
     assert((index < array->capacity) && "Address outside of capacity");
     return (char*)array->ptr_array + index * array->element_size;
 }

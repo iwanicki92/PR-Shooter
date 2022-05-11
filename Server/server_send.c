@@ -16,7 +16,7 @@ typedef struct {
 // Queue of IndividualMessages
 static SynchronizedQueue outgoing_queue;
 // message_to_everyone.data == NULL if there is no message
-Message message_to_everyone = {.size = 0, .data = NULL};
+static Message message_to_everyone = {.size = 0, .data = NULL};
 static pthread_mutex_t message_mutex;
 static pthread_cond_t new_message_cond = PTHREAD_COND_INITIALIZER;
 
@@ -35,7 +35,7 @@ void sendTo(Message message, size_t client_id) {
 }
 
 // returns shallow copy of message_to_everyone and changes message_to_everyone.data to NULL
-Message popMessageToEveryone() {
+static Message popMessageToEveryone() {
     lockMutex(&message_mutex);
     Message copy = message_to_everyone;
     if(message_to_everyone.data != NULL) {
@@ -45,14 +45,14 @@ Message popMessageToEveryone() {
     return copy;
 }
 
-void sendMessageTo(Message msg, Client client) {
+static void sendMessageTo(Message msg, Client client) {
     if(send(client.socket, msg.data, msg.size, 0) == -1) {
         perror("Send() msg error!");
     }
     freeOutgoingMessage(msg);
 }
 
-int waitForMessage() {
+static int waitForMessage() {
     struct timespec time;
     clock_gettime(CLOCK_REALTIME, &time);
     time.tv_sec += 1;

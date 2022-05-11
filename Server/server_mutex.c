@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-void setAttribute(pthread_mutexattr_t* attr, int type) {
+static void setAttribute(pthread_mutexattr_t* attr, int type) {
     if ((errno = pthread_mutexattr_init(attr)) != 0) {
         perror("pthread_mutexattr_init() error");
         exit(1);

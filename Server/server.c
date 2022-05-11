@@ -19,17 +19,17 @@ typedef struct {
     SynchronizedArray clients;
 } Threads;
 
-Threads threads;
+static Threads threads;
 static Dealocator dealocator;
 static bool stopped = true;
-pthread_mutex_t stop_mutex;
+static pthread_mutex_t stop_mutex;
 
-int startListeningThread();
-int startSendingThread();
-void stopReceivingThreads();
-void clearActiveClients();
-void clearConnectedClients();
-void clearEverything();
+static int startListeningThread();
+static int startSendingThread();
+static void stopReceivingThreads();
+static void clearActiveClients();
+static void clearConnectedClients();
+static void clearEverything();
 
 void printThreadDebugInformation(const char* msg) {
     #ifdef PRINT_DEBUG
@@ -44,6 +44,8 @@ int runServer(Dealocator dealocator_function) {
     stopped = false;
     initMutex(&stop_mutex);
     threads.clients = arraySyncCreate(sizeof(Client), 16);
+    // received queue needs to be initialized before first receiving thread is created
+    // and destroyed after all receiving threads are joined
     initReceivedQueue();
     if(startListeningThread() != 0) {
         stopped = true;
@@ -120,11 +122,7 @@ void addClient(int client_socket) {
     arrayUnlock(&threads.clients);
 }
 
-bool isEmpty() {
-    return false;
-}
-
-int startListeningThread() {
+static int startListeningThread() {
     int err = pthread_create(&threads.listening_thread, NULL, startListening, NULL);
     if(err != 0) {
         errno = err;
@@ -133,7 +131,7 @@ int startListeningThread() {
     return err;
 }
 
-int startSendingThread() {
+static int startSendingThread() {
     int err = pthread_create(&threads.sending_thread, NULL, startSending, NULL);
     if(err != 0) {
         errno = err;
@@ -142,7 +140,7 @@ int startSendingThread() {
     return err;
 }
 
-void stopReceivingThreads() {
+static void stopReceivingThreads() {
     arrayLock(&threads.clients);
     Array* client_array = &threads.clients.array;
     size_t size = arraySize(client_array);
@@ -161,15 +159,15 @@ void stopReceivingThreads() {
     free(thread_ids);
 }
 
-void clearActiveClients() {
+static void clearActiveClients() {
 
 }
 
-void clearConnectedClients() {
+static void clearConnectedClients() {
     arraySyncDestroy(&threads.clients);
 }
 
-void clearEverything() {
+static void clearEverything() {
     destroyReceivedQueue();
     clearActiveClients();
     clearConnectedClients();

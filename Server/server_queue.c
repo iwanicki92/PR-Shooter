@@ -25,7 +25,7 @@ SynchronizedQueue queueSyncCreate(size_t sizeof_element) {
     return queue;
 }
 
-QueueNode* createNewNode(size_t element_size, const void* element) {
+static QueueNode* createNewNode(size_t element_size, const void* element) {
     QueueNode* new_node = malloc(sizeof(QueueNode));
     new_node->data = malloc(element_size);
     memcpy(new_node->data, element, element_size);
@@ -47,7 +47,7 @@ void queueSyncPushBack(SynchronizedQueue* queue, const void* element) {
     queueUnlock(queue);
 }
 
-QueueNode* popFrontNode(SynchronizedQueue* queue) {
+static QueueNode* popFrontNode(SynchronizedQueue* queue) {
     queueLock(queue);
     assert((queue->first != NULL) && "Can't pop empty queue!");
     QueueNode* popped = queue->first;

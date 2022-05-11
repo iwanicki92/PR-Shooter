@@ -7,7 +7,7 @@
 #include <poll.h>
 #include <errno.h>
 
-SynchronizedQueue received_messages;
+static SynchronizedQueue received_messages;
 
 IncomingMessage takeMessage() {
     IncomingMessage recv_msg;
@@ -28,6 +28,11 @@ IncomingMessage takeMessage() {
     queueUnlock(&received_messages);    
     
     return recv_msg;
+}
+
+bool isEmpty() {
+    //return queueIsEmpty(&received_messages);
+    return false; // for debugging, delete later
 }
 
 void initReceivedQueue() {
