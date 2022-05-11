@@ -67,3 +67,4 @@ $(host_objs): $(obj_dir)/%.o: $(host_dir)/%.cpp
     
 $(bin_dir) $(obj_dir):
 	mkdir -p $@
+	

@@ -1,4 +1,5 @@
 #include "server_receive.h"
+#include "server_internal.h"
 #include "server_queue.h"
 #include <sys/socket.h>
 #include <unistd.h>
@@ -8,25 +9,33 @@
 #include <errno.h>
 
 static SynchronizedQueue received_messages;
+static pthread_cond_t recv_message_cond = PTHREAD_COND_INITIALIZER;
 
-IncomingMessage takeMessage() {
-    IncomingMessage recv_msg;
-    queueLock(&received_messages);
-    // TODO #5 Do conditional wait(until message is available)
-    if(queueIsEmpty(&received_messages) == false) {
-        queueSyncPopCopyFront(&received_messages, &recv_msg);
-    } else {
-        size_t size = (size_t)(rand() % 80 + 20);
-        Message msg = {.size = size, .data = malloc(size)};
-        for(size_t i = 0; i < size; ++i) {
-            msg.data[i] = (unsigned char)(rand() % 60 + 40);
+static int waitForMessage(size_t seconds) {
+    struct timespec time;
+    clock_gettime(CLOCK_REALTIME, &time);
+    time.tv_sec += (time_t)seconds;
+    while(queueIsEmpty(&received_messages)) {
+        // wait for pthread_cond_signal or timeout
+        int err = pthread_cond_timedwait(&recv_message_cond, received_messages.mutex, &time);
+        if(err == ETIMEDOUT) {
+            return ETIMEDOUT;
+        } else if(err != 0) {
+            errno = err;
+            perror("pthread_cond_timedwait() error");
+            exit(1);
         }
-        recv_msg.message_type = MESSAGE;
-        recv_msg.client_id = 0;
-        recv_msg.message = msg;
+    }
+    return 0;
+}
+
+IncomingMessage takeMessage(size_t wait_seconds) {
+    IncomingMessage recv_msg = {.message_type = OTHER, .message = {.size = 0, .data = NULL}};
+    queueLock(&received_messages);
+    if(waitForMessage(wait_seconds) == 0) {
+        queueSyncPopCopyFront(&received_messages, &recv_msg);
     }
     queueUnlock(&received_messages);    
-    
     return recv_msg;
 }
 
@@ -81,7 +90,10 @@ void* startReceiving(void* client_id_arg) {
                     free(recv_msg.message.data);
                     break;
                 }
+                queueLock(&received_messages);
                 queueSyncPushBack(&received_messages, &recv_msg);
+                pthread_cond_signal(&recv_message_cond);
+                queueUnlock(&received_messages);
             }
             else {
                 printf("File descriptor revents unknown: %d", file_descriptor.revents);

@@ -63,7 +63,7 @@ int main() {
         ++number_sent;
         
         if(isEmpty() == false) {
-            IncomingMessageWrapper message = takeMessage();
+            IncomingMessageWrapper message = takeMessage(1);
             std::cout << message.toString() << std::endl;
             ++number_received;
         }

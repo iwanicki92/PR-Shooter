@@ -52,16 +52,16 @@ static void sendMessageTo(Message msg, Client client) {
     freeOutgoingMessage(msg);
 }
 
-static int waitForMessage() {
+static int waitForMessage(size_t seconds) {
     struct timespec time;
     clock_gettime(CLOCK_REALTIME, &time);
-    time.tv_sec += 1;
+    time.tv_sec += (time_t)seconds;
     while(queueIsEmpty(&outgoing_queue) && message_to_everyone.data == NULL) {
         // wait for pthread_cond_signal or timeout
         int err = pthread_cond_timedwait(&new_message_cond, &message_mutex, &time);
-        if(err == ETIMEDOUT && isStopped()) {
+        if(isStopped()) {
             return -1;
-        } else if(err < 0) {
+        } else if(err != 0 && err != ETIMEDOUT) {
             errno = err;
             perror("pthread_cond_timedwait() error");
             exit(1);
@@ -76,7 +76,7 @@ void* startSending(void* no_arg) {
     outgoing_queue = queueSyncCreate(sizeof(IndividualMessage));
     while(isStopped() == false) {
         lockMutex(&message_mutex);
-        if(waitForMessage() == -1) {
+        if(waitForMessage(1) == -1) {
             unlockMutex(&message_mutex);
             break;
         }

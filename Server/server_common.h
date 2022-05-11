@@ -12,6 +12,7 @@ typedef struct {
     enum MessageType {
         NEW_CONNECTION,
         LOST_CONNECTION,
+        OTHER,
         MESSAGE
     } message_type;
     size_t client_id;
