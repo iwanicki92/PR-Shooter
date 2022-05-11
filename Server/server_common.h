@@ -2,9 +2,10 @@
 #define SERVER_COMMON_H
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct {
-    size_t size;
+    uint32_t size;
     unsigned char* data;
 } Message;
 
@@ -12,6 +13,7 @@ typedef struct {
     enum MessageType {
         NEW_CONNECTION,
         LOST_CONNECTION,
+        OTHER,
         MESSAGE
     } message_type;
     size_t client_id;

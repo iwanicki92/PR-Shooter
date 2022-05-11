@@ -31,9 +31,29 @@ public:
     size_t getSize() {
         return message.message.size;
     }
+    bool isMessage() {
+        return message.message.data != nullptr;
+    }
 private:
     IncomingMessage message;
 };
+
+void send(const std::string& string) {
+    unsigned char* buf = new unsigned char[string.length()];
+    string.copy(reinterpret_cast<char*>(buf), string.length());
+    sendToEveryone(Message{static_cast<uint32_t>(string.length()), buf});
+}
+
+int take() {
+    if(isEmpty() == false) {
+        IncomingMessageWrapper message = takeMessage(1);
+        if(message.isMessage()) {
+            std::cout << "Host: received = " << message.toString() << std::endl;
+            return 1;
+        }
+    }
+    return 0;
+}
 
 int main() {
     // CTRL+C
@@ -56,18 +76,12 @@ int main() {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         size_t index = rng();
         const std::string& string = test_strings[index];
-        unsigned char* buf = new unsigned char[string.length()];
-        string.copy(reinterpret_cast<char*>(buf), string.length());
-        sendToEveryone(Message{string.length(), buf});
+        send(string);
         ++number_sent;
-        
-        if(isEmpty() == false) {
-            IncomingMessageWrapper message = takeMessage();
-            std::cout << message.toString() << std::endl;
-            ++number_received;
-        }
+        number_received += take();
     }
 
     stopServer();
+    std::cout << "Host: received: " << number_received << "\nHost sent: " << number_sent << std::endl;
     return 0;
 }

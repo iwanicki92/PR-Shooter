@@ -13,6 +13,7 @@
 
 // copied from socket-server.c on enauczanie
 void* startListening(void* arg) {
+    printThreadDebugInformation("startListening()");
     int listenfd = 0, connfd = 0;
 	struct sockaddr_in serv_addr;
 
@@ -25,7 +26,7 @@ void* startListening(void* arg) {
 	serv_addr.sin_port = htons(5000); 
 
 	bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
-    printf("Server listening on port: %d/5000\n", serv_addr.sin_port);
+    printf("Server listening on port: 5000\n");
     listen(listenfd, 10);
     struct pollfd file_descriptor = {.fd = listenfd, .events = POLLIN};
 

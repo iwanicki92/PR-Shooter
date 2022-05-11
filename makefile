@@ -14,17 +14,20 @@ host_dir=./Host
 host_sources=$(wildcard $(host_dir)/*.cpp)
 server_dir=./Server
 server_sources=$(wildcard $(server_dir)/*.c)
+client_dir=./Client
+client_sources=$(wildcard $(client_dir)/*.cpp)
 
 # change every server_dir/*.c text to obj_dir/*.o
 server_objs=$(server_sources:$(server_dir)/%.c=$(obj_dir)/%.o)
 host_objs=$(host_sources:$(host_dir)/%.cpp=$(obj_dir)/%.o)
-dependencies=$(server_objs:%.o=%.d) $(host_objs:%.o=%.d)
+client_objs=$(client_sources:$(client_dir)/%.cpp=$(obj_dir)/%.o)
+dependencies=$(server_objs:%.o=%.d) $(host_objs:%.o=%.d) $(client_objs:%.o=%.d)
 
 # add debug preprocesor defines and flags
 ifeq ($(DEBUG), TRUE)
 override CPPFLAGS+=$(foreach DEFINE,$(debug_defines),-D $(DEFINE))
-override CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
-override CXXFLAGS+=-fsanitize=address -fno-omit-frame-pointer
+override CFLAGS+=-fsanitize=address -fno-omit-frame-pointer -O0
+override CXXFLAGS+=-fsanitize=address -fno-omit-frame-pointer -O0
 endif
 
 # if EXTENDED_FLAGS=TRUE then add warning flags to CFLAGS(C) and CXXFLAGS(C++)
@@ -37,9 +40,15 @@ run: host
 	$(bin_dir)/host
 
 rebuild: clean
-	$(MAKE) host
+	$(MAKE) all
+
+all: host client
+	@:
 
 host: $(bin_dir)/host
+	@:
+
+client: $(bin_dir)/client
 	@:
 
 server: $(server_objs) | $(obj_dir)
@@ -53,6 +62,9 @@ clean:
 $(bin_dir)/host: $(host_objs) $(server_objs) | $(bin_dir) $(obj_dir)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
+$(bin_dir)/client: $(client_objs) | $(bin_dir) $(obj_dir)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
 -include $(dependencies)
 
 # server_obj that is in format obj_dir/%.o requires server_dir/%.c source file
@@ -61,6 +73,10 @@ $(server_objs): $(obj_dir)/%.o: $(server_dir)/%.c
 
 $(host_objs): $(obj_dir)/%.o: $(host_dir)/%.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -MMD -c $< -o $@
+
+$(client_objs): $(obj_dir)/%.o: $(client_dir)/%.cpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -MMD -c $< -o $@
     
 $(bin_dir) $(obj_dir):
 	mkdir -p $@
+	

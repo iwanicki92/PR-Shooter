@@ -14,7 +14,9 @@ int runServer(Dealocator dealocator);
 int stopServer();
 void freeMessage(IncomingMessage message);
 void sendToEveryone(Message message);
-IncomingMessage takeMessage();
+// returns first message in queue or waits for one up to wait_seconds.
+// if function times out without message then returns IncomingMessage{.message_type=OTHER, Message{.size=0, .data=NULL}}
+IncomingMessage takeMessage(size_t wait_seconds);
 
 #ifdef __cplusplus
 }

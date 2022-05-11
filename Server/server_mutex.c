@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-void setAttribute(pthread_mutexattr_t* attr, int type) {
+static void setAttribute(pthread_mutexattr_t* attr, int type) {
     if ((errno = pthread_mutexattr_init(attr)) != 0) {
         perror("pthread_mutexattr_init() error");
         exit(1);
@@ -14,22 +14,21 @@ void setAttribute(pthread_mutexattr_t* attr, int type) {
     }
 }
 
-void initMutex(pthread_mutex_t* mutex) {
+void initMutexWithAttribute(pthread_mutex_t* mutex, int type) {
     pthread_mutexattr_t attr;
-    setAttribute(&attr, PTHREAD_MUTEX_ERRORCHECK);
+    setAttribute(&attr, type);
     if((errno = pthread_mutex_init(mutex, &attr)) != 0) {
         perror("pthread_mutex_init() error");
         exit(1);
     }
 }
 
+void initMutex(pthread_mutex_t* mutex) {
+    initMutexWithAttribute(mutex, PTHREAD_MUTEX_ERRORCHECK);
+}
+
 void initRecursiveMutex(pthread_mutex_t* mutex) {
-    pthread_mutexattr_t attr;
-    setAttribute(&attr, PTHREAD_MUTEX_RECURSIVE);
-    if((errno = pthread_mutex_init(mutex, &attr)) != 0) {
-        perror("pthread_mutex_init() error");
-        exit(1);
-    }
+    initMutexWithAttribute(mutex, PTHREAD_MUTEX_RECURSIVE);
 }
 
 void destroyMutex(pthread_mutex_t* mutex) {
