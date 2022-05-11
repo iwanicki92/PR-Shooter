@@ -65,6 +65,7 @@ int runServer(Dealocator dealocator_function) {
 }
 
 int stopServer() {
+    printThreadDebugInformation("stopping server");
     stopped = true;
     pthread_join(threads.listening_thread, NULL);
     pthread_join(threads.sending_thread, NULL);
@@ -106,6 +107,13 @@ void freeMessage(IncomingMessage incoming_message) {
 
 void freeOutgoingMessage(Message message) {
     dealocator(message.data);
+}
+
+void stopClient(size_t client_id) {
+    arrayLock(&threads.clients);
+    Client* client = arraySyncUnsafeGetItem(&threads.clients, client_id);
+    client->status = STOPPED;
+    arrayUnlock(&threads.clients);
 }
 
 void addClient(int client_socket) {

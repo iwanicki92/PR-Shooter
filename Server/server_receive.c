@@ -40,8 +40,7 @@ IncomingMessage takeMessage(size_t wait_seconds) {
 }
 
 bool isEmpty() {
-    //return queueIsEmpty(&received_messages);
-    return false; // for debugging, delete later
+    return queueIsEmpty(&received_messages);
 }
 
 void initReceivedQueue() {
@@ -58,8 +57,8 @@ void* startReceiving(void* client_id_arg) {
     snprintf(buf, 50, "startReceiving() client: %ld", client_id);
     printThreadDebugInformation(buf);
     free(client_id_arg);
-    int socket = getClient(client_id).socket;
-    struct pollfd file_descriptor = {.fd = socket, .events = POLLIN};
+    int sock = getClient(client_id).socket;
+    struct pollfd file_descriptor = {.fd = sock, .events = POLLIN};
     while(getClientStatus(client_id) == RUNNING) {
         int return_poll = poll(&file_descriptor, 1, 2000);
         if(return_poll < 0 && errno != EINTR) {
@@ -69,24 +68,26 @@ void* startReceiving(void* client_id_arg) {
         else if(return_poll == 1) {
             if(file_descriptor.revents & POLLIN) {
                 IncomingMessage recv_msg = {.message_type = MESSAGE, .client_id = client_id};
-                int return_recv = recv(socket, &recv_msg.message.size, sizeof(size_t), MSG_WAITALL);
+                int return_recv = recv(sock, &recv_msg.message.size, sizeof(recv_msg.message.size), MSG_WAITALL);
                 if(return_recv == -1) {
-                    perror("recv() msg size error!");
+                    snprintf(buf, 50, "client(%ld): recv() msg size error!", client_id);
+                    perror(buf);
                     break;
                 }
-                else if((size_t)return_recv != sizeof(size_t)) {
-                    fprintf(stderr, "recv() size returned wrong number of bytes: %d instead of %ld\n", return_recv, sizeof(size_t));
+                else if((size_t)return_recv != sizeof(recv_msg.message.size)) {
+                    fprintf(stderr, "client(%ld): recv() size returned wrong number of bytes: %d instead of %ld\n", client_id, return_recv, sizeof(recv_msg.message.size));
                     break;
                 }
                 recv_msg.message.data = malloc(recv_msg.message.size);
-                return_recv = recv(socket, recv_msg.message.data, recv_msg.message.size, MSG_WAITALL);
+                return_recv = recv(sock, recv_msg.message.data, recv_msg.message.size, MSG_WAITALL);
                 if(return_recv == -1) {
-                    perror("recv() msg data error!");
+                    snprintf(buf, 50, "client(%ld): recv() msg data error!", client_id);
+                    perror(buf);
                     free(recv_msg.message.data);
                     break;
                 }
                 else if((size_t)return_recv != recv_msg.message.size) {
-                    fprintf(stderr, "recv() data returned wrong number of bytes: %d instead of %ld\n", return_recv, recv_msg.message.size);
+                    fprintf(stderr, "client(%ld): recv() data returned wrong number of bytes: %d instead of %d\n", client_id, return_recv, recv_msg.message.size);
                     free(recv_msg.message.data);
                     break;
                 }
@@ -96,11 +97,14 @@ void* startReceiving(void* client_id_arg) {
                 queueUnlock(&received_messages);
             }
             else {
-                printf("File descriptor revents unknown: %d", file_descriptor.revents);
+                printf("client(%ld): File descriptor revents unknown: %d", client_id, file_descriptor.revents);
             }
         }
     }
-
-    close(socket);
+    printf("client(%ld): closing \n", client_id);
+    if(close(sock) == -1) {
+        perror("close() error!");
+    }
+    stopClient(client_id);
     return NULL;
 }

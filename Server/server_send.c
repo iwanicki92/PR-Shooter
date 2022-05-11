@@ -46,10 +46,12 @@ static Message popMessageToEveryone() {
 }
 
 static void sendMessageTo(Message msg, Client client) {
-    if(send(client.socket, msg.data, msg.size, 0) == -1) {
-        perror("Send() msg error!");
+    if(send(client.socket, &msg.size, sizeof(msg.size), 0) == -1) {
+        perror("Send(size) error!");
     }
-    freeOutgoingMessage(msg);
+    if(send(client.socket, msg.data, msg.size, 0) == -1) {
+        perror("Send(data) error!");
+    }
 }
 
 static int waitForMessage(size_t seconds) {
@@ -83,9 +85,11 @@ void* startSending(void* no_arg) {
         queueLock(&outgoing_queue);        
         if(queueIsEmpty(&outgoing_queue) == false) {
             unlockMutex(&message_mutex);
-            IndividualMessage* msg = queueSyncPopFront(&outgoing_queue);
+            IndividualMessage* ind_msg = queueSyncPopFront(&outgoing_queue);
             queueUnlock(&outgoing_queue);
-            sendMessageTo(msg->message, getClient(msg->client_id));
+            sendMessageTo(ind_msg->message, getClient(ind_msg->client_id));
+            freeOutgoingMessage(ind_msg->message);
+            free(ind_msg);
         } else {
             queueUnlock(&outgoing_queue);
             Message msg = popMessageToEveryone();
@@ -93,8 +97,13 @@ void* startSending(void* no_arg) {
             Array clients = getAllClients();
             for(size_t i = 0; i < clients.size; ++i) {
                 Client client = *(Client*)(arrayUnsafeGetItem(&clients, i));
+                if(client.status != RUNNING) {
+                    continue;
+                }
                 sendMessageTo(msg, client);
+                fflush(stdout);
             }
+            freeOutgoingMessage(msg);
             arrayDestroy(&clients);
         }
     }

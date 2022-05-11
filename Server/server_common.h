@@ -2,9 +2,10 @@
 #define SERVER_COMMON_H
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct {
-    size_t size;
+    uint32_t size;
     unsigned char* data;
 } Message;
 

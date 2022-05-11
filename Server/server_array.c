@@ -130,6 +130,7 @@ void arrayClear(Array* array) {
 
 Array arrayGetCopy(Array* array) {
     Array new_array = arrayCreate(array->element_size, array->size);
+    new_array.size = array->size;
     memcpy(new_array.ptr_array, array->ptr_array, array->size * array->element_size);
     return new_array;
 }
