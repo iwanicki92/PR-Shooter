@@ -34,7 +34,7 @@ void sendTo(Message message, size_t client_id) {
     pthread_cond_signal(&new_message_cond);
 }
 
-// returns copy of message_to_everyone and changes message_to_everyone.data to NULL
+// returns shallow copy of message_to_everyone and changes message_to_everyone.data to NULL
 Message popMessageToEveryone() {
     lockMutex(&message_mutex);
     Message copy = message_to_everyone;
@@ -46,36 +46,43 @@ Message popMessageToEveryone() {
 }
 
 void sendMessageTo(Message msg, Client client) {
-    // TODO #2 write sending msg to client socket
-
     if(send(client.socket, msg.data, msg.size, 0) == -1) {
         perror("Send() msg error!");
     }
     freeOutgoingMessage(msg);
 }
 
+int waitForMessage() {
+    struct timespec time;
+    clock_gettime(CLOCK_REALTIME, &time);
+    time.tv_sec += 1;
+    while(queueIsEmpty(&outgoing_queue) && message_to_everyone.data == NULL) {
+        // wait for pthread_cond_signal or timeout
+        int err = pthread_cond_timedwait(&new_message_cond, &message_mutex, &time);
+        if(err == ETIMEDOUT && isStopped()) {
+            return -1;
+        } else if(err < 0) {
+            errno = err;
+            perror("pthread_cond_timedwait() error");
+            exit(1);
+        }
+    }
+    return 0;
+}
+
 void* startSending(void* no_arg) {
     printThreadDebugInformation("startSending()");
     initRecursiveMutex(&message_mutex);
     outgoing_queue = queueSyncCreate(sizeof(IndividualMessage));
-    struct timespec time;
     while(isStopped() == false) {
         lockMutex(&message_mutex);
-        clock_gettime(CLOCK_REALTIME, &time);
-        time.tv_sec += 1;
-        while(queueIsEmpty(&outgoing_queue) && message_to_everyone.data == NULL) {
-            // wait for pthread_cond_signal or timeout
-            int err = pthread_cond_timedwait(&new_message_cond, &message_mutex, &time);
-            if(err == ETIMEDOUT) {
-                continue;
-            } else if(err < 0) {
-                errno = err;
-                perror("pthread_cond_timedwait() error");
-                exit(1);
-            }
+        if(waitForMessage() == -1) {
+            unlockMutex(&message_mutex);
+            break;
         }
         queueLock(&outgoing_queue);        
         if(queueIsEmpty(&outgoing_queue) == false) {
+            unlockMutex(&message_mutex);
             IndividualMessage* msg = queueSyncPopFront(&outgoing_queue);
             queueUnlock(&outgoing_queue);
             sendMessageTo(msg->message, getClient(msg->client_id));
@@ -89,9 +96,7 @@ void* startSending(void* no_arg) {
                 sendMessageTo(msg, client);
             }
             arrayDestroy(&clients);
-            continue; // because I already unlocked message_mutex
         }
-        unlockMutex(&message_mutex);
     }
 
     queueSyncDestroy(&outgoing_queue);
