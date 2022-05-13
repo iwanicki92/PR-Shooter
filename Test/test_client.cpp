@@ -74,7 +74,7 @@ int main(int argc, char* argv[]) {
     }
 
     if(close(sock) == -1) {
-        perror("close() error!");
+        perror("Client: close() error!");
     }
     printf("Client: Disconnected\nClient: Received %d messages, Sent %d messages\n", number_received, number_sent);
     fflush(0);
@@ -84,11 +84,15 @@ int main(int argc, char* argv[]) {
 void send(int sock, const std::string& send_string, int& sent) {
     uint32_t size = static_cast<uint32_t>(send_string.length());
     if(send(sock, &size, 4, 0) == -1) {
-        perror("Client: send(size) error");
+        if(errno != ECONNRESET && errno != EPIPE) {
+            perror("Client: send(size) error");
+        }
         return;
     }
     if(send(sock, send_string.c_str(), send_string.length(), 0) == -1) {
-        perror("Client: send(data) error");
+        if(errno != ECONNRESET && errno != EPIPE) {
+            perror("Client: send(data) error");
+        }
         return;
     }
     ++sent;
@@ -112,7 +116,7 @@ int connectToServer(const std::string& ip, uint16_t port) {
     }
 
     if(connect(sock, reinterpret_cast<struct sockaddr*>(&serv_addr), sizeof(serv_addr)) == -1) {
-        perror("connect() error!");
+        perror("Client: connect() error!");
         close(sock);
         return -1;
     }
@@ -125,26 +129,29 @@ std::string receive(int sock) {
     uint32_t size = 0;
     int return_recv = recv(sock, &size, 4, MSG_DONTWAIT);
     if(return_recv == -1) {
-        if(errno != EWOULDBLOCK && errno != EAGAIN)
-            perror("recv() error!");
+        if(errno != EWOULDBLOCK && errno != EAGAIN && errno != ECONNRESET && errno != EPIPE) {
+            perror("Client: recv() error!");
+        }
         return "";
     }
     else if(return_recv == 0) {
         return "";
     }
     else if(return_recv != 4) {
-        fprintf(stderr, "recv(size) returned wrong number of bytes: %d instead of 4\n", return_recv);
+        fprintf(stderr, "Client: recv(size) returned wrong number of bytes: %d instead of 4\n", return_recv);
         return "";
     }
     char* buf = new char[size];
     return_recv = recv(sock, buf, size, MSG_WAITALL);
     if(return_recv == -1) {
-        perror("recv() error!");
+        if(errno != ECONNRESET && errno != EPIPE) {
+            perror("Client: recv() error!");
+        }
         delete[] buf;
         return "";
     }
     else if(return_recv != size) {
-        fprintf(stderr, "recv(data) returned wrong number of bytes: %d instead of %d\n", return_recv, size);
+        fprintf(stderr, "Client: recv(data) returned wrong number of bytes: %d instead of %d\n", return_recv, size);
         delete[] buf;
         return "";
     }

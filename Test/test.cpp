@@ -163,14 +163,16 @@ void waitForInterrupt() {
 }
 
 void printPipe(int pipefd) {
-    char buf[4096];
+    char buf[4095];
+    buf[4094] = '\0';
     FILE* pipe_read = fdopen(pipefd, "r");
     if(pipe_read == nullptr) {
         perror("fdopen(host) error!");
     }
-    if (fread(buf, 1, sizeof(buf), pipe_read)) {
+    int read_buf = sizeof(buf) - 1;
+    while(read_buf == sizeof(buf) - 1) {
+        read_buf = fread(buf, 1, sizeof(buf) - 1, pipe_read);
+        buf[read_buf] = '\0';
         printf("%s", buf);
-    } else {
-        printf("Host didn't write anything!\n");
-  }
+    }
 }
