@@ -21,6 +21,8 @@ void queueUnlock(SynchronizedQueue* queue);
 SynchronizedQueue queueSyncCreate(size_t sizeof_element);
 // adds new copy of *element to queue
 void queueSyncPushBack(SynchronizedQueue* queue, const void* element);
+// adds new copy of *element to queue
+void queueSyncPushFront(SynchronizedQueue* queue, const void* element);
 // removes and returns first element(first one pushed). User needs to free returned pointer after use
 void* queueSyncPopFront(SynchronizedQueue* queue);
 // removes first element after copyping it into *buf

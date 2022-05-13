@@ -41,7 +41,7 @@ Array arrayCreate(size_t element_size, size_t starting_item_capacity) {
 }
 
 void resize(Array* array, size_t capacity) {
-    if(array->size > capacity) {
+    if(array->capacity > capacity) {
         return;
     }
     void* new_ptr = realloc(array->ptr_array, capacity * array->element_size);
@@ -50,6 +50,7 @@ void resize(Array* array, size_t capacity) {
         exit(1);
     }
     array->ptr_array = new_ptr;
+    array->capacity = capacity;
 }
 
 size_t arraySyncPushBack(SynchronizedArray* array,  const void* item) {

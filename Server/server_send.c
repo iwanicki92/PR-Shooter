@@ -45,12 +45,21 @@ static Message popMessageToEveryone() {
     return copy;
 }
 
-static void sendMessageTo(Message msg, Client client) {
+static void sendMessageTo(Message msg, Client client, size_t client_id) {
+    if(client.status != RUNNING) {
+        return;
+    }
     if(send(client.socket, &msg.size, sizeof(msg.size), 0) == -1) {
-        perror("Send(size) error!");
+        if(errno != ECONNRESET && errno != EPIPE) {
+            perror("Server: Send(size) error!");
+        }
+        signalClientToStop(client_id);
     }
     if(send(client.socket, msg.data, msg.size, 0) == -1) {
-        perror("Send(data) error!");
+        if(errno != ECONNRESET && errno != EPIPE) {
+            perror("Server: Send(data) error!");
+        }
+        signalClientToStop(client_id);
     }
 }
 
@@ -87,7 +96,7 @@ void* startSending(void* no_arg) {
             unlockMutex(&message_mutex);
             IndividualMessage* ind_msg = queueSyncPopFront(&outgoing_queue);
             queueUnlock(&outgoing_queue);
-            sendMessageTo(ind_msg->message, getClient(ind_msg->client_id));
+            sendMessageTo(ind_msg->message, getClient(ind_msg->client_id), ind_msg->client_id);
             freeOutgoingMessage(ind_msg->message);
             free(ind_msg);
         } else {
@@ -97,17 +106,19 @@ void* startSending(void* no_arg) {
             Array clients = getAllClients();
             for(size_t i = 0; i < clients.size; ++i) {
                 Client client = *(Client*)(arrayUnsafeGetItem(&clients, i));
-                if(client.status != RUNNING) {
-                    continue;
-                }
-                sendMessageTo(msg, client);
-                fflush(stdout);
+                sendMessageTo(msg, client, i);
             }
             freeOutgoingMessage(msg);
             arrayDestroy(&clients);
         }
     }
-
+    queueLock(&outgoing_queue);
+    while(queueIsEmpty(&outgoing_queue) == false) {
+        IndividualMessage* ind_msg = queueSyncPopFront(&outgoing_queue);
+        freeOutgoingMessage(ind_msg->message);
+        free(ind_msg);
+    }
+    queueUnlock(&outgoing_queue);
     queueSyncDestroy(&outgoing_queue);
     destroyMutex(&message_mutex);
     freeOutgoingMessage(message_to_everyone);

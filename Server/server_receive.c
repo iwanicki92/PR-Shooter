@@ -53,8 +53,10 @@ void destroyReceivedQueue() {
 
 void* startReceiving(void* client_id_arg) {
     size_t client_id = *((size_t*)client_id_arg);
-    char buf[50];
-    snprintf(buf, 50, "startReceiving() client: %ld", client_id);
+    IncomingMessage connected = {.message_type = NEW_CONNECTION, .client_id = client_id, .message={.size = 0, .data = NULL}};
+    queueSyncPushBack(&received_messages, &connected);
+    char buf[256];
+    snprintf(buf, 256, "startReceiving() client: %ld", client_id);
     printThreadDebugInformation(buf);
     free(client_id_arg);
     int sock = getClient(client_id).socket;
@@ -70,24 +72,33 @@ void* startReceiving(void* client_id_arg) {
                 IncomingMessage recv_msg = {.message_type = MESSAGE, .client_id = client_id};
                 int return_recv = recv(sock, &recv_msg.message.size, sizeof(recv_msg.message.size), MSG_WAITALL);
                 if(return_recv == -1) {
-                    snprintf(buf, 50, "client(%ld): recv() msg size error!", client_id);
-                    perror(buf);
+                    if(errno != ECONNRESET && errno != EPIPE) {
+                        snprintf(buf, 256, "client(%ld): recv(size) error!", client_id);
+                        perror(buf);
+                    }
+                    break;
+                }
+                else if(return_recv == 0) {
                     break;
                 }
                 else if((size_t)return_recv != sizeof(recv_msg.message.size)) {
-                    fprintf(stderr, "client(%ld): recv() size returned wrong number of bytes: %d instead of %ld\n", client_id, return_recv, sizeof(recv_msg.message.size));
+                    fprintf(stderr, "client(%ld): recv(size) returned wrong number of bytes: %d instead of %ld\n", client_id, return_recv, sizeof(recv_msg.message.size));
                     break;
                 }
                 recv_msg.message.data = malloc(recv_msg.message.size);
                 return_recv = recv(sock, recv_msg.message.data, recv_msg.message.size, MSG_WAITALL);
                 if(return_recv == -1) {
-                    snprintf(buf, 50, "client(%ld): recv() msg data error!", client_id);
-                    perror(buf);
+                    if(errno != ECONNRESET && errno != EPIPE) {
+                        snprintf(buf, 50, "client(%ld): recv(data) data error!", client_id);
+                        perror(buf);
+                    }
                     free(recv_msg.message.data);
                     break;
                 }
                 else if((size_t)return_recv != recv_msg.message.size) {
-                    fprintf(stderr, "client(%ld): recv() data returned wrong number of bytes: %d instead of %d\n", client_id, return_recv, recv_msg.message.size);
+                    if(return_recv != 0) {
+                        fprintf(stderr, "client(%ld): recv(data) returned wrong number of bytes: %d instead of %d\n", client_id, return_recv, recv_msg.message.size);
+                    }
                     free(recv_msg.message.data);
                     break;
                 }
@@ -101,7 +112,10 @@ void* startReceiving(void* client_id_arg) {
             }
         }
     }
-    printf("client(%ld): closing \n", client_id);
+    IncomingMessage disconnected = {.message_type = LOST_CONNECTION, .client_id = client_id, .message={.size = 0, .data = NULL}};
+    queueSyncPushFront(&received_messages, &disconnected);
+    sprintf(buf, "client(%ld): closing \n", client_id);
+    printThreadDebugInformation(buf);
     if(close(sock) == -1) {
         perror("close() error!");
     }
