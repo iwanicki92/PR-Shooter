@@ -26,3 +26,4 @@ Dodatkowe argumenty by zmienić działanie make:
     - x=1 - wypisuje informacje podczas blokowania/odblokowywania mutexów(wątek i mutex)  
     - x=2 - wypisuje dodatkowo zawartość tablicy synchronicznej podczas blokowania dostępu do niej  
     - x=3 - wypisuje dodatkowo informacje o dostępie do synchronicznej tablicy(tylko niektóre funkcje)  
+    
