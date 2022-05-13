@@ -13,6 +13,7 @@ int runServer(Dealocator dealocator);
 // stop only if runServer returned without error 
 int stopServer();
 void freeMessage(IncomingMessage message);
+void sendTo(Message message, size_t client_id);
 void sendToEveryone(Message message);
 // returns first message in queue or waits for one up to wait_seconds.
 // if function times out without message then returns IncomingMessage{.message_type=OTHER, Message{.size=0, .data=NULL}}

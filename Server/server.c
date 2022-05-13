@@ -32,7 +32,7 @@ static void clearConnectedClients();
 static void clearEverything();
 
 void printThreadDebugInformation(const char* msg) {
-    #ifdef PRINT_DEBUG
+    #if (defined PRINT_DEBUG && PRINT_DEBUG >= 0)
     printf("Thread [%ld]: %s\n", pthread_self(), msg);
     #endif
 }
@@ -113,6 +113,13 @@ void stopClient(size_t client_id) {
     arrayLock(&threads.clients);
     Client* client = arraySyncUnsafeGetItem(&threads.clients, client_id);
     client->status = STOPPED;
+    arrayUnlock(&threads.clients);
+}
+
+void signalClientToStop(size_t client_id) {
+    arrayLock(&threads.clients);
+    Client* client = arraySyncUnsafeGetItem(&threads.clients, client_id);
+    client->status = STOP;
     arrayUnlock(&threads.clients);
 }
 

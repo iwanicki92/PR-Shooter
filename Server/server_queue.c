@@ -38,11 +38,26 @@ void queueSyncPushBack(SynchronizedQueue* queue, const void* element) {
     queueLock(queue);
     QueueNode* new_node = createNewNode(queue->element_size, element);
     QueueNode* old_last = queue->last;
+    new_node->previous = old_last;
     queue->last = new_node;
     if(old_last == NULL) {
         queue->first = new_node;
     } else {
         old_last->next = new_node;
+    }
+    queueUnlock(queue);
+}
+
+void queueSyncPushFront(SynchronizedQueue* queue, const void* element) {
+    queueLock(queue);
+    QueueNode* new_node = createNewNode(queue->element_size, element);
+    QueueNode* old_first = queue->first;
+    new_node->next = old_first;
+    queue->first = new_node;
+    if(old_first == NULL) {
+        queue->last = new_node;
+    } else {
+        old_first->previous = new_node;
     }
     queueUnlock(queue);
 }

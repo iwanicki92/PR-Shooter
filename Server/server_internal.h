@@ -15,6 +15,7 @@ void printThreadDebugInformation(const char* msg);
 void freeOutgoingMessage(Message message);
 void addClient(int client_socket);
 void stopClient(size_t client_id);
+void signalClientToStop(size_t client_id);
 Client getClient(size_t client_id);
 // returns a copy. Needs to be destroyed after use!!!
 Array getAllClients();

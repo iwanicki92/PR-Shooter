@@ -12,24 +12,47 @@
 #include <functional>
 #include <chrono>
 #include <thread>
-#include <errno.h>
+#include <cerrno>
 
 static volatile std::sig_atomic_t stop = false;
 
-int connectToServer();
-void send(int sock, const std::string& send_string) {
-    uint32_t size = static_cast<uint32_t>(send_string.length());
-    send(sock, &size, 4, 0);
-    send(sock, send_string.c_str(), send_string.length(), 0);
-}
-
+int connectToServer(const std::string& ip, uint16_t port = 5000);
+void send(int sock, const std::string& send_string, int& sent);
 std::string receive(int sock);
 
-int main() {
+std::string getIP() {
+    std::string ip;
+    std::cout << "Podaj ip(albo localhost jak na tym samym komputerze): ";
+    std::cin >> ip;
+    return ip;
+}
+
+uint16_t getPort() {
+    uint16_t port;
+    std::cout << "Podaj port(domyślny 5000): ";
+    std::cin >> port;
+    return port;
+}
+
+struct Timer {
+    void start() {
+        time_priv = std::chrono::steady_clock::now();
+    }
+    auto time() {
+        return  std::chrono::duration<double>(std::chrono::steady_clock::now() - time_priv).count();
+    }
+    private:
+        std::chrono::time_point<std::chrono::steady_clock> time_priv = std::chrono::steady_clock::now();
+};
+
+int main(int argc, char* argv[]) {
     // CTRL+C
     std::signal(SIGINT, [](int) { stop = true; });
 
-    int sock = connectToServer();
+    std::string ip = argc > 1 ? argv[1] : getIP();
+    uint16_t port = argc > 2 ? static_cast<uint16_t>(std::stoi(argv[2])) : getPort();
+
+    int sock = connectToServer(ip, port);
     if(sock == -1) {
         return 1;
     }
@@ -37,35 +60,46 @@ int main() {
     std::array<std::string, 4> test_strings{"Client1", "123456789Client123456789", "420", "@"};
     auto rng = std::bind(std::uniform_int_distribution<size_t>(0, test_strings.size() - 1), std::default_random_engine(std::random_device()()));
     int number_received = 0;
+    int number_sent = 0;
+    Timer timer;
     while(stop == false) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(400));
-        send(sock, test_strings[rng()]);
+        if(timer.time() > 0.01) {
+            send(sock, test_strings[rng()], number_sent);
+            timer.start();
+        }
         std::string received = receive(sock);
         if(received != "") {
             ++number_received;
-            std::cout << "Client: Received = " << received << "\n";
         }
     }
 
     if(close(sock) == -1) {
         perror("close() error!");
     }
-    std::cout << "disconnected\nReceived = " << number_received << std::endl;
+    printf("Client: Disconnected\nClient: Received %d messages, Sent %d messages\n", number_received, number_sent);
+    fflush(0);
+    return 0;
 }
 
-int connectToServer() {
+void send(int sock, const std::string& send_string, int& sent) {
+    uint32_t size = static_cast<uint32_t>(send_string.length());
+    if(send(sock, &size, 4, 0) == -1) {
+        perror("Client: send(size) error");
+        return;
+    }
+    if(send(sock, send_string.c_str(), send_string.length(), 0) == -1) {
+        perror("Client: send(data) error");
+        return;
+    }
+    ++sent;
+}
+
+int connectToServer(const std::string& ip, uint16_t port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock == -1) {
         perror("socket() error!");
         return -1;
     }
-
-    std::string ip;
-    uint16_t port;
-    std::cout << "Podaj ip(albo localhost jak na tym samym komputerze): ";
-    std::cin >> ip;
-    std::cout << "Podaj port: ";
-    std::cin >> port;
 
     struct sockaddr_in serv_addr;
 	memset(&serv_addr, '0', sizeof(serv_addr));
@@ -82,7 +116,7 @@ int connectToServer() {
         close(sock);
         return -1;
     }
-    std::cout << "Client: connected\n";
+    std::cout << "Client: Connected\n";
 
     return sock;
 }
