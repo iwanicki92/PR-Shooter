@@ -6,7 +6,7 @@ Do ułatwienia kompilacji/uruchamiania można używać przygotowanego makefile. 
 `make rebuild` - usuwa wszystkie pliki z folderów ./bin/ i ./obj/ i buduje wszystko od nowa  
 `make host` - buduje ./bin/host  
 `make server` - kompiluje pliki .c do plików .o  
-`make build_test` - buduje ./bin/test_host, ./bin/test_client oraz ./bin/test
+`make build_test` - buduje ./bin/test_host, ./bin/test_client oraz ./bin/test  
 `make test` - uruchamia test - serwer + 4 klientów na kilka sekund  
 
 `./bin/test [sekundy [klienci]]`  
