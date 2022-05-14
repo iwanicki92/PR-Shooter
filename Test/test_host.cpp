@@ -81,9 +81,9 @@ struct Host {
         }
     }
 
-    void take() {
+    void takeMessage() {
         if(isEmpty() == false) {
-            IncomingMessageWrapper message = takeMessage(1);
+            IncomingMessageWrapper message = take(1);
             switch(message.getType()) {
                 case MessageType::NEW_CONNECTION:
                     addClient(message.getClientId());
@@ -136,7 +136,7 @@ int main() {
             host.send(string);
             timer.start();
         }
-        host.take();
+        host.takeMessage();
     }
 
     printf("Server: stopping\n");

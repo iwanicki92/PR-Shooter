@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <signal.h>
 
 typedef struct {
     pthread_t listening_thread;
@@ -38,6 +39,10 @@ void printThreadDebugInformation(const char* msg) {
 }
 
 int runServer(Dealocator dealocator_function) {
+    sigset_t set, old_set;
+    sigfillset(&set);
+    pthread_sigmask(SIG_SETMASK, &set, &old_set);
+    
     printThreadDebugInformation("runServer()");
     srand(time(NULL));
     dealocator = dealocator_function;
@@ -50,6 +55,7 @@ int runServer(Dealocator dealocator_function) {
     if(startListeningThread() != 0) {
         stopped = true;
         clearEverything();
+        pthread_sigmask(SIG_SETMASK, &old_set, NULL);
         return 1;
     }
     if(startSendingThread() != 0) {
@@ -59,19 +65,20 @@ int runServer(Dealocator dealocator_function) {
         pthread_join(threads.listening_thread, NULL);
         stopReceivingThreads();
         clearEverything();
+        pthread_sigmask(SIG_SETMASK, &old_set, NULL);
         return 2;
     }
+    pthread_sigmask(SIG_SETMASK, &old_set, NULL);
     return 0;
 }
 
-int stopServer() {
+void stopServer() {
     printThreadDebugInformation("stopping server");
     stopped = true;
     pthread_join(threads.listening_thread, NULL);
     pthread_join(threads.sending_thread, NULL);
     stopReceivingThreads();
     clearEverything();
-    return 0;
 }
 
 bool isStopped() {

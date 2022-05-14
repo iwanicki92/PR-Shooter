@@ -29,8 +29,8 @@ static int waitForMessage(size_t seconds) {
     return 0;
 }
 
-IncomingMessage takeMessage(size_t wait_seconds) {
-    IncomingMessage recv_msg = {.message_type = OTHER, .message = {.size = 0, .data = NULL}};
+IncomingMessage take(size_t wait_seconds) {
+    IncomingMessage recv_msg = {.message_type = EMPTY, .message = {.size = 0, .data = NULL}};
     queueLock(&received_messages);
     if(waitForMessage(wait_seconds) == 0) {
         queueSyncPopCopyFront(&received_messages, &recv_msg);
