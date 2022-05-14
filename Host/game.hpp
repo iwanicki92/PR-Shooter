@@ -3,7 +3,9 @@
 #include <vector>
 #include <unordered_map>
 #include <chrono>
+#include <array>
 #include <utility>
+#include <mutex>
 #include <cstdint>
 
 struct Position {
@@ -48,7 +50,13 @@ private:
     void deletePlayer(size_t player_id);
     void updatePositions();
     void checkCollisions();
+    Message serialize();
+    void updateThread();
+    void sendThread();
+    void receiveThread();
+
     Map game_map;
     std::unordered_map<size_t, Player> players;
     std::vector<Projectile> projectiles;
+    std::mutex update_mutex;
 };

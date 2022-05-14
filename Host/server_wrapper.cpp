@@ -57,11 +57,11 @@ bool Server::isMessageWaiting() {
     return !isEmpty();
 }
 
-static void sendMessageTo(Message message, size_t client_id) {
+void Server::sendMessageTo(Message message, size_t client_id) {
     sendTo(message, client_id);
 }
 
-static void sendMessageToEveryone(Message message) {
+void Server::sendMessageToEveryone(Message message) {
     sendToEveryone(message);
 }
 
