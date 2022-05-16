@@ -17,6 +17,7 @@ server_dir=./Server
 server_sources=$(wildcard $(server_dir)/*.c)
 client_dir=./Client
 client_sources=$(wildcard $(client_dir)/*.cpp)
+_dummy:=$(shell mkdir -p $(bin_dir) $(obj_dir))
 
 # change every server_dir/*.c text to obj_dir/*.o
 server_objs=$(server_sources:$(server_dir)/%.c=$(obj_dir)/%.o)
@@ -68,19 +69,19 @@ clean:
 	$(RM) $(obj_dir)/* $(bin_dir)/*
 
 # $^ - expanded prerequisites, $@ - target: ./bin/host
-$(bin_dir)/host: $(host_objs) $(server_objs) | $(bin_dir) $(obj_dir)
+$(bin_dir)/host: $(host_objs) $(server_objs)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(bin_dir)/client: $(client_objs) | $(bin_dir) $(obj_dir)
+$(bin_dir)/client: $(client_objs)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(bin_dir)/test_host: $(obj_dir)/test_host.o $(server_objs) | $(bin_dir) $(obj_dir)
+$(bin_dir)/test_host: $(obj_dir)/test_host.o $(server_objs)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 	
-$(bin_dir)/test_client: $(obj_dir)/test_client.o | $(bin_dir) $(obj_dir)
+$(bin_dir)/test_client: $(obj_dir)/test_client.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(bin_dir)/test: $(obj_dir)/test.o | $(bin_dir) $(obj_dir)
+$(bin_dir)/test: $(obj_dir)/test.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 -include $(dependencies)
@@ -97,7 +98,4 @@ $(client_objs): $(obj_dir)/%.o: $(client_dir)/%.cpp
 
 $(obj_dir)/test_host.o $(obj_dir)/test_client.o $(obj_dir)/test.o: $(obj_dir)/%.o: ./Test/%.cpp
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -MMD -c $< -o $@
-    
-$(bin_dir) $(obj_dir):
-	mkdir -p $@
-	
+
