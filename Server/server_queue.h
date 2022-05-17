@@ -27,7 +27,7 @@ void queueSyncPushFront(SynchronizedQueue* queue, const void* element);
 void* queueSyncPopFront(SynchronizedQueue* queue);
 // removes first element after copyping it into *buf
 void queueSyncPopCopyFront(SynchronizedQueue* queue, void* buf);
-bool queueIsEmpty(SynchronizedQueue* queue);
+bool queueSyncIsEmpty(SynchronizedQueue* queue);
 // not thread safe! Only one thread can operate on queue during this function.
 // after destroying queue can't be used before initializing again(by creating new)
 void queueSyncDestroy(SynchronizedQueue* queue);

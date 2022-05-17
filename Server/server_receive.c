@@ -15,7 +15,7 @@ static int waitForMessage(size_t seconds) {
     struct timespec time;
     clock_gettime(CLOCK_REALTIME, &time);
     time.tv_sec += (time_t)seconds;
-    while(queueIsEmpty(&received_messages)) {
+    while(queueSyncIsEmpty(&received_messages)) {
         // wait for pthread_cond_signal or timeout
         int err = pthread_cond_timedwait(&recv_message_cond, received_messages.mutex, &time);
         if(err == ETIMEDOUT) {
@@ -40,7 +40,7 @@ IncomingMessage take(size_t wait_seconds) {
 }
 
 bool isEmpty() {
-    return queueIsEmpty(&received_messages);
+    return queueSyncIsEmpty(&received_messages);
 }
 
 void initReceivedQueue() {
