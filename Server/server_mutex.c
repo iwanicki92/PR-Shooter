@@ -39,10 +39,10 @@ void destroyMutex(pthread_mutex_t* mutex) {
 }
 
 void lockMutex(pthread_mutex_t* mutex) {
-    //#if (defined PRINT_DEBUG && PRINT_DEBUG > 0)
-    //printf("lockMutex:[%p], Thread: [%ld]\n", (void*)mutex, pthread_self());
-    //fflush(stdout);
-    //#endif
+    #if (defined PRINT_DEBUG && PRINT_DEBUG > 0)
+    printf("lockMutex:[%p], Thread: [%ld]\n", (void*)mutex, pthread_self());
+    fflush(stdout);
+    #endif
     if((errno = pthread_mutex_lock(mutex)) != 0) {
         perror("pthread_mutex_lock() error");
         exit(1);
