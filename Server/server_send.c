@@ -129,7 +129,6 @@ void* startSending(void* no_arg) {
         free(ind_msg);
     }
     queueUnlock(&outgoing_queue);
-    destroyOutgoingQueue();
     freeOutgoingMessage(message_to_everyone);
     return NULL;
 }
