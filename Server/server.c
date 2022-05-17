@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <signal.h>
+#include <stdatomic.h>
 
 typedef struct {
     pthread_t listening_thread;
@@ -22,8 +23,7 @@ typedef struct {
 
 static Threads threads;
 static Dealocator dealocator;
-static bool stopped = true;
-static pthread_mutex_t stop_mutex;
+static volatile atomic_bool stopped = true;
 
 static int startListeningThread();
 static int startSendingThread();
@@ -39,9 +39,7 @@ void printThreadDebugInformation(const char* msg) {
 }
 
 static void setStop() {
-    lockMutex(&stop_mutex);
     stopped = true;
-    unlockMutex(&stop_mutex);
 }
 
 int runServer(Dealocator dealocator_function) {
@@ -53,7 +51,6 @@ int runServer(Dealocator dealocator_function) {
     srand(time(NULL));
     dealocator = dealocator_function;
     stopped = false;
-    initMutex(&stop_mutex);
     threads.clients = arraySyncCreate(sizeof(Client), 16);
     // received queue needs to be initialized before first receiving thread is created
     // and destroyed after all receiving threads are joined
@@ -87,10 +84,7 @@ void stopServer() {
 }
 
 bool isStopped() {
-    lockMutex(&stop_mutex);
-    bool stop_ret = stopped;
-    unlockMutex(&stop_mutex);
-    return stop_ret;
+    return stopped;
 }
 
 Client getClient(size_t client_id) {
@@ -205,5 +199,4 @@ static void clearEverything() {
     destroyOutgoingQueue();
     clearActiveClients();
     clearConnectedClients();
-    destroyMutex(&stop_mutex);
 }
