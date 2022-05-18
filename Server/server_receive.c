@@ -48,6 +48,11 @@ void initReceivedQueue() {
 }
 
 void destroyReceivedQueue() {
+    while(queueSyncIsEmpty(&received_messages) == false) {
+        IncomingMessage* msg = queueSyncPopFront(&received_messages);
+        free(msg->message.data);
+        free(msg);
+    }
     queueSyncDestroy(&received_messages);
 }
 

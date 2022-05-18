@@ -1,0 +1,19 @@
+Każda wiadomość zaczyna się 4 bajtowym rozmiarem wiadomości uint32_t(nie wliczając tych 4 bajtów),
+kolejny bajt to typ wiadomości wartości takie same jak w enum DataType w Host/basic_structs.hpp
+
+1. Klient się połączył
+2. Serwer wysyła:
+    - 1 wiadomość(3 bajty)(id przypisane do klienta): 0(1 bajt), id gracza(2 bajty)
+    - 2 wiadomość: 1(1 bajt), ilość ścian(2 bajty), ilość przeszkód(2 bajty), n ścian, m przeszkód
+        - Punkt(razem 16 bajtów) - x(8 bajtów double), y(8 bajtów double)
+        - ściana(Prostokąt)(razem 64 bajty) - 4 punkty: P1, P2, P3, P4
+        - przeszkoda(Koło)(razem 24 bajty) - 1 punkt P1, promień(8 bajtów double)
+3. Klient wysyła:
+    - Żądanie respawnu: x(1 bajt) - ustalić wartość x, może być 0
+
+Od momentu połączenia(1) w każdej chwili może także przyjść wiadomość z aktualnym stanem gry,
+także przed 1 wiadomością z id gracza
+    - wiadomość: 2(1 bajt), ilość graczy(2 bajty), ilość pocisków(2 bajty), n graczy, m pocisków
+        - gracz(31 bajtów) - id(2 bajty), życie(1 bajt), pozycja P(16 bajtów), prędkość(4 bajty float),
+                    kąt ruchu(4 bajty float), kąt obrotu/patrzenia(4 bajty float)
+        - pocisk(22 bajty) - id właściciela(2 bajty), pozycja P(16 bajtów), kąt ruchu(4 bajty float)

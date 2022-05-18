@@ -1,4 +1,5 @@
 #pragma once
+#include "basic_structs.hpp"
 #include "server_wrapper.hpp"
 #include <vector>
 #include <unordered_map>
@@ -8,40 +9,31 @@
 #include <mutex>
 #include <cstdint>
 
-struct Position {
-    double x, y;
-};
-
-class MapObject {
-
-};
-
-class Projectile {
-private:
-    uint8_t owner_id;
-    Position position;
+struct Projectile {
+    size_t owner_id;
+    Point position;
     float angle;
 };
 
-class Player {
-public:
-
-private:
+struct Player {
     size_t player_id;
     uint8_t health;
-    Position position;
-    float velocity;
+    Point position;
+    float speed;
     float movement_angle;
     float view_angle;
 };
 
-class Map {
-    std::vector<MapObject> map;
+struct Map {
+    std::vector<Rectangle> borders;
+    std::vector<Rectangle> walls;
+    std::vector<Circle> obstacles;
 };
 
 class Game {
 public:
     Game();
+    ~Game();
     void run();
 
 private:
@@ -50,10 +42,13 @@ private:
     void deletePlayer(size_t player_id);
     void updatePositions();
     void checkCollisions();
-    Message serialize();
+    Message serializeGameState();
+    Message serializeMap();
     void updateThread();
     void sendThread();
     void receiveThread();
+    void sendWelcomeMessage(size_t player_id);
+    void sendCurrentMap(Message msg, size_t player_id);
 
     Map game_map;
     std::unordered_map<size_t, Player> players;
