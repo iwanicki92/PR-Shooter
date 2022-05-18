@@ -19,7 +19,7 @@ class Player:
         self.angle_of_watching = angle_of_watching
 
 
-class Projectile():
+class Projectile:
+    pass
 
-    def __init__(self, id, x_pos, y_pos, angle_of_movement):
 
