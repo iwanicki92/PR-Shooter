@@ -1,26 +1,43 @@
-key_dictionary = {
-    65: ["A", 1],
-    68: ["D", 2],
-    83: ["S", 3],
-    87: ["W", 4]
-}
+import pygame
+
+pygame.init()
+display_width = 500
+display_height = 500
+
+result = pygame.display.set_mode((display_width, display_height))
+
+pygame.display.set_caption('PR-Shooter')
+x = 80
+y = 80
+width = 20
+height = 20
+value = 3
+
+run = True
+while run:
+    pygame.time.delay(100)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+
+    keys = pygame.key.get_pressed()
+
+    if keys[pygame.K_w]:
+        y -= value
+    if keys[pygame.K_s]:
+        y += value
+    if keys[pygame.K_a]:
+        x -= value
+    if keys[pygame.K_d]:
+        x += value
+    pygame.draw.rect(result, (0, 0, 255), (x, y, width, height))
+    pygame.display.update()
+
+    result.fill((0, 0, 0))
+pygame.quit()
 
 
-class KeyboardFunctions:
-    def __repr__(self):
-        return f"Keystrokes..."
-
-
-    def setting_game_thread(self, game_thread):
-        self.game_thread = game_thread
-
-
-    def key_board(self, other):
-        if self.game_thread is not None:
-            pressed = other.key
-            #print(key_dictionary.keys())
-            if pressed in key_dictionary.keys():
-                self.game_thread.pressed.append(key_dictionary[pressed][1])
 
 
 
