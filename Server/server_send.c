@@ -67,7 +67,7 @@ static int waitForMessage(size_t seconds) {
     struct timespec time;
     clock_gettime(CLOCK_REALTIME, &time);
     time.tv_sec += (time_t)seconds;
-    while(queueIsEmpty(&outgoing_queue) && message_to_everyone.data == NULL) {
+    while(queueSyncIsEmpty(&outgoing_queue) && message_to_everyone.data == NULL) {
         // wait for pthread_cond_signal or timeout
         int err = pthread_cond_timedwait(&new_message_cond, &message_mutex, &time);
         if(isStopped()) {
@@ -81,10 +81,20 @@ static int waitForMessage(size_t seconds) {
     return 0;
 }
 
-void* startSending(void* no_arg) {
-    printThreadDebugInformation("startSending()");
+// called by runServer() before creating thread to make sure there won't be any access to mutex or queue
+// before they are created(in extremely unlikely scenario)
+void initOutgoingQueue() {
     initRecursiveMutex(&message_mutex);
     outgoing_queue = queueSyncCreate(sizeof(IndividualMessage));
+}
+
+void destroyOutgoingQueue() {
+    queueSyncDestroy(&outgoing_queue);
+    destroyMutex(&message_mutex);
+}
+
+void* startSending(void* no_arg) {
+    printThreadDebugInformation("startSending()");
     while(isStopped() == false) {
         lockMutex(&message_mutex);
         if(waitForMessage(1) == -1) {
@@ -92,7 +102,7 @@ void* startSending(void* no_arg) {
             break;
         }
         queueLock(&outgoing_queue);        
-        if(queueIsEmpty(&outgoing_queue) == false) {
+        if(queueSyncIsEmpty(&outgoing_queue) == false) {
             unlockMutex(&message_mutex);
             IndividualMessage* ind_msg = queueSyncPopFront(&outgoing_queue);
             queueUnlock(&outgoing_queue);
@@ -113,14 +123,12 @@ void* startSending(void* no_arg) {
         }
     }
     queueLock(&outgoing_queue);
-    while(queueIsEmpty(&outgoing_queue) == false) {
+    while(queueSyncIsEmpty(&outgoing_queue) == false) {
         IndividualMessage* ind_msg = queueSyncPopFront(&outgoing_queue);
         freeOutgoingMessage(ind_msg->message);
         free(ind_msg);
     }
     queueUnlock(&outgoing_queue);
-    queueSyncDestroy(&outgoing_queue);
-    destroyMutex(&message_mutex);
     freeOutgoingMessage(message_to_everyone);
     return NULL;
 }

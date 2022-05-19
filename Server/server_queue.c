@@ -89,8 +89,11 @@ void queueSyncPopCopyFront(SynchronizedQueue* queue, void* buf) {
     free(data);
 }
 
-bool queueIsEmpty(SynchronizedQueue* queue) {
-    return queue->first == NULL;
+bool queueSyncIsEmpty(SynchronizedQueue* queue) {
+    queueLock(queue);
+    bool empty = queue->first == NULL;
+    queueUnlock(queue);
+    return empty;
 }
 
 void queueSyncDestroy(SynchronizedQueue* queue) {

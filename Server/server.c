@@ -11,6 +11,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <signal.h>
+#include <stdatomic.h>
 
 typedef struct {
     pthread_t listening_thread;
@@ -21,8 +23,7 @@ typedef struct {
 
 static Threads threads;
 static Dealocator dealocator;
-static bool stopped = true;
-static pthread_mutex_t stop_mutex;
+static volatile atomic_bool stopped = true;
 
 static int startListeningThread();
 static int startSendingThread();
@@ -37,48 +38,53 @@ void printThreadDebugInformation(const char* msg) {
     #endif
 }
 
+static void setStop() {
+    stopped = true;
+}
+
 int runServer(Dealocator dealocator_function) {
+    sigset_t set, old_set;
+    sigfillset(&set);
+    pthread_sigmask(SIG_SETMASK, &set, &old_set);
+    
     printThreadDebugInformation("runServer()");
     srand(time(NULL));
     dealocator = dealocator_function;
     stopped = false;
-    initMutex(&stop_mutex);
     threads.clients = arraySyncCreate(sizeof(Client), 16);
     // received queue needs to be initialized before first receiving thread is created
     // and destroyed after all receiving threads are joined
     initReceivedQueue();
+    initOutgoingQueue();
     if(startListeningThread() != 0) {
         stopped = true;
         clearEverything();
+        pthread_sigmask(SIG_SETMASK, &old_set, NULL);
         return 1;
     }
     if(startSendingThread() != 0) {
-        lockMutex(&stop_mutex);
-        stopped = true;
-        unlockMutex(&stop_mutex);
+        setStop();
         pthread_join(threads.listening_thread, NULL);
         stopReceivingThreads();
         clearEverything();
+        pthread_sigmask(SIG_SETMASK, &old_set, NULL);
         return 2;
     }
+    pthread_sigmask(SIG_SETMASK, &old_set, NULL);
     return 0;
 }
 
-int stopServer() {
+void stopServer() {
     printThreadDebugInformation("stopping server");
-    stopped = true;
+    setStop();
     pthread_join(threads.listening_thread, NULL);
     pthread_join(threads.sending_thread, NULL);
     stopReceivingThreads();
     clearEverything();
-    return 0;
 }
 
 bool isStopped() {
-    lockMutex(&stop_mutex);
-    bool stop_ret = stopped;
-    unlockMutex(&stop_mutex);
-    return stop_ret;
+    return stopped;
 }
 
 Client getClient(size_t client_id) {
@@ -126,14 +132,16 @@ void signalClientToStop(size_t client_id) {
 void addClient(int client_socket) {
     Client client = {.socket = client_socket, .status = RUNNING};
     arrayLock(&threads.clients);
-    size_t* client_id = malloc(sizeof(size_t));
-    *client_id = arrayPushBack(&threads.clients.array, &client);
+    size_t* client_id_arg = malloc(sizeof(size_t));
+    *client_id_arg = arrayPushBack(&threads.clients.array, &client);
+    size_t client_id = *client_id_arg;
     pthread_t thread_id;
-    if((errno = pthread_create(&thread_id, NULL, startReceiving, client_id)) != 0) {
+    if((errno = pthread_create(&thread_id, NULL, startReceiving, client_id_arg)) != 0) {
         perror("pthread_create() error");
-        free(client_id);
+        free(client_id_arg);
         close(client_socket);
     }
+    ((Client*)arraySyncUnsafeGetItem(&threads.clients, client_id))->thread_id = thread_id;
     arrayUnlock(&threads.clients);
 }
 
@@ -169,7 +177,11 @@ static void stopReceivingThreads() {
     arrayUnlock(&threads.clients);
     // wait until all threads exit/join
     for(size_t i = 0; i < size; ++i) {
-        pthread_join(thread_ids[i], NULL);
+        int err = pthread_join(thread_ids[i], NULL);
+        if(err != 0) {
+            errno = err;
+            perror("pthread_join() error!");
+        }
     }
     free(thread_ids);
 }
@@ -184,7 +196,7 @@ static void clearConnectedClients() {
 
 static void clearEverything() {
     destroyReceivedQueue();
+    destroyOutgoingQueue();
     clearActiveClients();
     clearConnectedClients();
-    destroyMutex(&stop_mutex);
 }

@@ -13,6 +13,8 @@
 #include <chrono>
 #include <thread>
 #include <cerrno>
+#include <poll.h>
+#include <fcntl.h>
 
 static volatile std::sig_atomic_t stop = false;
 
@@ -99,7 +101,7 @@ void send(int sock, const std::string& send_string, int& sent) {
 }
 
 int connectToServer(const std::string& ip, uint16_t port) {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    int sock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if(sock == -1) {
         perror("socket() error!");
         return -1;
@@ -116,13 +118,29 @@ int connectToServer(const std::string& ip, uint16_t port) {
     }
 
     if(connect(sock, reinterpret_cast<struct sockaddr*>(&serv_addr), sizeof(serv_addr)) == -1) {
-        perror("Client: connect() error!");
-        close(sock);
-        return -1;
+        if(errno != EAGAIN && errno != EWOULDBLOCK && errno != EINPROGRESS) {
+            perror("Client: connect() error!");
+            close(sock);
+            return -1;
+        }
     }
-    std::cout << "Client: Connected\n";
-
-    return sock;
+    struct pollfd fd {.fd = sock, .events = POLLOUT};
+    while(stop == false) {
+        int ret = poll(&fd, 1, 1000);
+        if(ret == 0) {
+            std::cout << "Client: timeout" << std::endl;
+            continue;
+        } else if(ret > 0) {
+            fcntl(sock, F_SETFL, SOCK_STREAM);
+            std::cout << "Client: Connected" << std::endl;
+            return sock;
+        } else if(errno != EINTR){
+            perror("poll() error!");
+            break;
+        }
+    }
+    close(sock);
+    return -1;
 }
 
 std::string receive(int sock) {

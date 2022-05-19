@@ -15,7 +15,7 @@ static int waitForMessage(size_t seconds) {
     struct timespec time;
     clock_gettime(CLOCK_REALTIME, &time);
     time.tv_sec += (time_t)seconds;
-    while(queueIsEmpty(&received_messages)) {
+    while(queueSyncIsEmpty(&received_messages)) {
         // wait for pthread_cond_signal or timeout
         int err = pthread_cond_timedwait(&recv_message_cond, received_messages.mutex, &time);
         if(err == ETIMEDOUT) {
@@ -29,8 +29,8 @@ static int waitForMessage(size_t seconds) {
     return 0;
 }
 
-IncomingMessage takeMessage(size_t wait_seconds) {
-    IncomingMessage recv_msg = {.message_type = OTHER, .message = {.size = 0, .data = NULL}};
+IncomingMessage take(size_t wait_seconds) {
+    IncomingMessage recv_msg = {.message_type = EMPTY, .message = {.size = 0, .data = NULL}};
     queueLock(&received_messages);
     if(waitForMessage(wait_seconds) == 0) {
         queueSyncPopCopyFront(&received_messages, &recv_msg);
@@ -40,7 +40,7 @@ IncomingMessage takeMessage(size_t wait_seconds) {
 }
 
 bool isEmpty() {
-    return queueIsEmpty(&received_messages);
+    return queueSyncIsEmpty(&received_messages);
 }
 
 void initReceivedQueue() {
@@ -48,6 +48,11 @@ void initReceivedQueue() {
 }
 
 void destroyReceivedQueue() {
+    while(queueSyncIsEmpty(&received_messages) == false) {
+        IncomingMessage* msg = queueSyncPopFront(&received_messages);
+        free(msg->message.data);
+        free(msg);
+    }
     queueSyncDestroy(&received_messages);
 }
 

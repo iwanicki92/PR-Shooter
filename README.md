@@ -8,6 +8,7 @@ Do ułatwienia kompilacji/uruchamiania można używać przygotowanego makefile. 
 `make server` - kompiluje pliki .c do plików .o  
 `make build_test` - buduje ./bin/test_host, ./bin/test_client oraz ./bin/test  
 `make test` - uruchamia test - serwer + 4 klientów na kilka sekund  
+`make all` - make host client build_test
 
 `./bin/test [sekundy [klienci]]`  
 - sekundy - Jak długo ma pracować test(liczba sekund), -1 bez limitu(przerwać CTRL+C)  
