@@ -1,4 +1,4 @@
-class Game:
+class Game():
 
     def __init__(self, size, type_of_message, n, m):
         self.size = size
@@ -9,8 +9,8 @@ class Game:
 
 class Player:
 
-    def __init__(self, id, health, x_pos, y_pos, speed, angle_of_movement, angle_of_watching):
-        self.id = id
+    def __init__(self, ident, health, x_pos, y_pos, speed, angle_of_movement, angle_of_watching):
+        self.ident = ident
         self.health = health
         self.x_pos = x_pos
         self.y_pos = y_pos
@@ -20,6 +20,14 @@ class Player:
 
 
 class Projectile:
-    pass
+    def __init__(self, ident, x_pos, y_pos, angle_of_movement):
+        self.id = ident
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        self.angle_of_movement = angle_of_movement
 
 
+
+class Message:
+    #def __init__(self, send_map, spawn, change_orientation, change_movement, shoot, change):
+        pass
