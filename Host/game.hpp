@@ -9,23 +9,30 @@
 #include <mutex>
 #include <cstdint>
 
-struct Projectile {
+struct Projectile : Circle {
     size_t owner_id;
-    Point position;
-    float angle;
+    Vector velocity = {0, 0};
+
+    Projectile();
+    Point& getPosition();
+    const Point& getPosition() const;
 };
 
-struct Player {
+struct Player : Circle {
     size_t player_id;
-    uint8_t health;
-    Point position;
-    float speed;
-    float movement_angle;
-    float view_angle;
+    uint8_t health = 100;
+    Vector velocity = {0, 0};
+    float view_angle = 0;
+    bool alive = false;
+
+    Player();
+    Point& getPosition();
+    const Point& getPosition() const;
 };
 
 struct Map {
-    std::vector<Rectangle> borders;
+    std::vector<Point> border_polygon;
+    // cointains border made up from rectangles
     std::vector<Rectangle> walls;
     std::vector<Circle> obstacles;
 };
@@ -42,6 +49,7 @@ private:
     void deletePlayer(size_t player_id);
     void updatePositions();
     void checkCollisions();
+    bool checkProjectileCollisions(const Projectile& projectile);
     Message serializeGameState();
     Message serializeMap();
     void updateThread();
@@ -49,6 +57,11 @@ private:
     void receiveThread();
     void sendWelcomeMessage(size_t player_id);
     void sendCurrentMap(Message msg, size_t player_id);
+    void moveAlongNormal(Player& player, const Circle& object);
+    void moveAlongNormal(Player& player, const Rectangle& object);
+    void spawnPlayer(size_t player_id);
+    void changePlayerOrientation(size_t player_id, float angle);
+    void changePlayerMovement(size_t player_id, double velocity_x, double velocity_y);
 
     Map game_map;
     std::unordered_map<size_t, Player> players;

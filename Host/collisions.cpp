@@ -3,13 +3,18 @@
 
 double triangleField(Point a, Point b, Point c);
 bool circleLineSegmentCollision(Circle c, Point a, Point b);
-bool checkCollision(const Circle& c, Rectangle& rec);
-bool checkCollision(const Rectangle& rec, const Circle& c);
 bool ciclePointCollision(Circle c, Point a);
-double distance(const Point& a, const Point& b);
+
+double square(double x) {
+	return x * x;
+}
 
 double distance(const Point& a, const Point& b) {
-	return sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
+	return std::sqrt(square(b.x - a.x) + square(b.y - a.y));
+}
+
+bool checkCollision(const Circle& c1, const Circle& c2) {
+	return (square(c1.centre.x - c2.centre.x) + square(c1.centre.y - c2.centre.y)) < square(c1.r + c2.r);
 }
 
 bool checkCollision(const Circle& c, const Rectangle& rec) {
