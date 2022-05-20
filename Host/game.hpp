@@ -58,6 +58,7 @@ private:
     void sendWelcomeMessage(size_t player_id);
     void moveAlongNormal(Player& player, const Circle& object);
     void moveAlongNormal(Player& player, const Rectangle& object);
+    void moveAlongNormal(Player& player, Player& object);
     void shootProjectile(size_t player_id);
     void spawnPlayer(size_t player_id);
     void changePlayerOrientation(size_t player_id, float angle);

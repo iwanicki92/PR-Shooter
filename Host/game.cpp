@@ -12,7 +12,7 @@ volatile static sig_atomic_t stop_signal = false;
 volatile static std::atomic<bool> stop = false;
 
 struct Constants {
-    static constexpr std::chrono::milliseconds timestep{8};
+    static constexpr std::chrono::milliseconds timestep{3};
     static constexpr std::chrono::duration<double> double_timestep{timestep};
     static_assert(timestep > std::chrono::milliseconds(2));
     static constexpr std::chrono::milliseconds send_delay{16};
@@ -21,8 +21,8 @@ struct Constants {
     static constexpr uint16_t max_player_speed = 150;
     static constexpr uint16_t projectile_speed = 100;
     static constexpr uint16_t projectile_damage = 10;
-    static constexpr double projectile_radius = 2;
-    static constexpr double player_radius = 10;
+    static constexpr double projectile_radius = 4;
+    static constexpr double player_radius = 30;
 };
 
 template <class CopyAs, class ArgType>
@@ -249,7 +249,7 @@ void Game::checkCollisions() {
                 moveAlongNormal(player, obstacle);
             }
         }
-        for(const auto& [player_id, second_player] : players) {
+        for(auto& [player_id, second_player] : players) {
             if(&second_player == &player) {
                 continue;
             }
@@ -291,9 +291,24 @@ bool Game::checkProjectileCollisions(const Projectile& projectile) {
     return false;
 }
 
+std::pair<Vector, double> calculateDisplacement(const Circle& circle1, const Circle circle2) {
+    double dist = distance(circle1.centre, circle2.centre);
+    double displacement = Constants::player_radius + circle2.r - dist; // displacement length
+    Vector displacement_vector = (circle1.centre - circle2.centre);
+    displacement_vector /= displacement_vector.length(); // normalized displacement vector
+    return std::make_pair(displacement_vector, displacement);
+}
+
+void Game::moveAlongNormal(Player& player1, Player& player2) {
+    const auto& [displacement_vector, displacement] = calculateDisplacement(player1, player2);
+    double half_displacement = displacement / 2;
+    player1.centre += displacement_vector * half_displacement;
+    player2.centre += displacement_vector * half_displacement * -1;
+}
+
 void Game::moveAlongNormal(Player& player, const Circle& object) {
-    // TODO move player to collision point along normal(sliding), currently it pushes back
-    player.getPosition() += (player.velocity * Constants::max_player_speed * Constants::double_timestep.count()) * -1;
+    const auto& [displacement_vector, displacement] = calculateDisplacement(player, object);
+    player.centre += displacement_vector * displacement;
 }
 
 void Game::moveAlongNormal(Player& player, const Rectangle& object) {

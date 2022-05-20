@@ -25,7 +25,9 @@ struct Point {
     double x = 0;
     double y = 0;
 
+    double length() const;
     Point& operator*=(double rhs);
+    Point& operator/=(double rhs);
     Point& operator+=(const Point& rhs);
     Point operator*(double rhs) const;
     Point operator+(const Point& rhs) const;

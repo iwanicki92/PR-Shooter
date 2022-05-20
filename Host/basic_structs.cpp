@@ -1,10 +1,22 @@
 #include "basic_structs.hpp"
+#include "collisions.h"
+#include <cmath>
 
 Point::Point(double x, double y) : x(x), y(y) {}
+
+double Point::length() const {
+    return sqrt(square(x) + square(y));
+}
 
 Point& Point::operator*=(double rhs) {
     this->x *= rhs;
     this->y *= rhs;
+    return *this;
+}
+
+Point& Point::operator/=(double rhs) {
+    this->x /= rhs;
+    this->y /= rhs;
     return *this;
 }
 

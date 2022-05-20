@@ -14,7 +14,7 @@ double distance(const Point& a, const Point& b) {
 }
 
 bool checkCollision(const Circle& c1, const Circle& c2) {
-	return (square(c1.centre.x - c2.centre.x) + square(c1.centre.y - c2.centre.y)) < square(c1.r + c2.r);
+	return (square(c1.centre.x - c2.centre.x) + square(c1.centre.y - c2.centre.y)) < square(c1.r + c2.r) - 1.0e-10;
 }
 
 bool checkCollision(const Circle& c, const Rectangle& rec) {
