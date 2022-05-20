@@ -12,18 +12,32 @@ volatile static std::atomic<bool> stop = false;
 
 struct Constants {
     static constexpr std::chrono::milliseconds timestep{8};
-    static constexpr std::chrono::duration<float> float_timestep{timestep};
+    static constexpr std::chrono::duration<double> double_timestep{timestep};
     static_assert(timestep > std::chrono::milliseconds(2));
     static constexpr std::chrono::milliseconds send_delay{16};
+    static constexpr double epsilon_one = 0.00001;
     // distance traveled per second
-    static constexpr uint16_t max_player_speed = 50;
+    static constexpr uint16_t max_player_speed = 150;
     static constexpr uint16_t projectile_speed = 100;
     static constexpr uint16_t projectile_damage = 10;
-    static constexpr uint16_t projectile_radius = 10;
-    static constexpr uint16_t player_radius = 10;
-    static constexpr uint16_t serialized_projectile_size = 34;
-    static constexpr uint16_t serialized_player_size = 39;
+    static constexpr double projectile_radius = 2;
+    static constexpr double player_radius = 10;
 };
+
+template <class CopyAs, class ArgType>
+inline typename std::enable_if_t<not std::is_same_v<std::decay_t<ArgType>, Point>, size_t>
+copyToBuf(unsigned char*& buf, ArgType val) {
+    *reinterpret_cast<CopyAs*>(buf) = static_cast<CopyAs>(val);
+    buf += sizeof(CopyAs);
+    return sizeof(CopyAs);
+}
+
+template<class CopyAs, class ArgType>
+inline typename std::enable_if_t<std::is_same_v<std::decay_t<ArgType>, Point>, size_t>
+copyToBuf(unsigned char*& buf, ArgType point) {
+    size_t size = copyToBuf<double>(buf, point.x);
+    return size + copyToBuf<double>(buf, point.y);
+}
 
 Projectile::Projectile() : Circle(Point(), Constants::projectile_radius) {}
 
@@ -35,7 +49,7 @@ const Point& Projectile::getPosition() const {
     return centre;
 }
 
-Player::Player() : Circle(Point(), Constants::player_radius) {}
+Player::Player(size_t player_id) : Circle(Point(), Constants::player_radius), player_id(player_id) {}
 
 Point& Player::getPosition() {
     return centre;
@@ -60,6 +74,9 @@ Game::Game() {
 
 Game::~Game() {
     Server::stop();
+    for(const auto& [id, number] : packets) {
+        std::cout << "Client(" << id << "): recv = " << number.first << ", send = " << number.second << "\n";
+    }
 }
 
 void Game::run() {
@@ -99,6 +116,9 @@ void Game::sendThread() {
         std::this_thread::sleep_for(Constants::send_delay);
         update_mutex.lock();
         Message game_state = serializeGameState();
+        for(auto& [player_id, player] : players) {
+            packets[player_id].second += 1;
+        }
         update_mutex.unlock();
         Server::sendMessageToEveryone(game_state);
     }
@@ -120,7 +140,7 @@ void Game::handleMessage(IncomingMessageWrapper&& message) {
                 {
                     Message map = serializeMap();
                     update_mutex.unlock();
-                    sendCurrentMap(map, message.getClientId());
+                    Server::sendMessageTo(map, message.getClientId());
                 }
                 return;
             case MessageType::LOST_CONNECTION:
@@ -131,6 +151,9 @@ void Game::handleMessage(IncomingMessageWrapper&& message) {
                     case SPAWN:
                         spawnPlayer(message.getClientId());
                         break;
+                    case SHOOT:
+                        shootProjectile(message.getClientId());
+                        break;
                     case CHANGE_ORIENTATION:
                         changePlayerOrientation(message.getClientId(), *reinterpret_cast<float*>(message.getBuffer() + 1));
                         break;
@@ -138,11 +161,19 @@ void Game::handleMessage(IncomingMessageWrapper&& message) {
                         changePlayerMovement(message.getClientId(), *reinterpret_cast<double*>(message.getBuffer() + 1),
                                             *reinterpret_cast<double*>(message.getBuffer() + 9));
                         break;
+                    default:
+                        std::cout << "UNKNOWN\n";
+                        break;
                 }
                 break;
         }
+        ++packets[message.getClientId()].first;
         update_mutex.unlock();
     }
+}
+
+void Game::shootProjectile(size_t player_id) {
+    // TODO create projectile
 }
 
 void Game::spawnPlayer(size_t player_id) {
@@ -151,17 +182,22 @@ void Game::spawnPlayer(size_t player_id) {
 }
 
 void Game::changePlayerOrientation(size_t player_id, float angle) {
-    players[player_id].view_angle = angle;
+    players[player_id].orientation_angle = angle;
 }
 
 void Game::changePlayerMovement(size_t player_id, double velocity_x, double velocity_y) {
-    if(square(velocity_x) + square(velocity_y) <= 1) {
+    if(square(velocity_x) + square(velocity_y) <= 1 + Constants::epsilon_one) {
         players[player_id].velocity = Vector(velocity_x, velocity_y);
+    }
+    else {
+        std::cout << "|v| = " << square(velocity_x) + square(velocity_y) << "\n";
     }
 }
 
 void Game::createNewPlayer(size_t player_id) {
-    players[player_id] = Player();
+    players[player_id] = Player(player_id);
+    packets[player_id] = {0,0};
+    std::cout << "New player connected: " << player_id << "\n";
 }
 
 void Game::deletePlayer(size_t player_id) {
@@ -170,30 +206,22 @@ void Game::deletePlayer(size_t player_id) {
 
 void Game::sendWelcomeMessage(size_t player_id) {
     // TODO send needed constants(max player speed, projectile speed)
-    const size_t size = 7;
+    const size_t size = 1 + 2 + sizeof(double) * 2;
     unsigned char* buf = new unsigned char[size];
     Message msg = {.size = size, .data = buf};
-    *buf = DataType::WELCOME_MESSAGE;
-    buf += 1;
-    *reinterpret_cast<uint16_t*>(buf) = static_cast<uint16_t>(player_id);
-    buf += 2;
-    *reinterpret_cast<uint16_t*>(buf) = static_cast<uint16_t>(Constants::player_radius);
-    buf += 2;
-    *reinterpret_cast<uint16_t*>(buf) = static_cast<uint16_t>(Constants::projectile_radius);
-    buf += 2;    
-    Server::sendMessageTo(msg, player_id);
-}
-
-void Game::sendCurrentMap(Message msg, size_t player_id) {
+    copyToBuf<uint8_t>(buf, DataType::WELCOME_MESSAGE);
+    copyToBuf<uint16_t>(buf, player_id);
+    copyToBuf<double>(buf, Constants::player_radius);
+    copyToBuf<double>(buf, Constants::projectile_radius);
     Server::sendMessageTo(msg, player_id);
 }
 
 void Game::updatePositions() {
     for(auto& [player_id, player] : players) {
-        player.getPosition() += player.velocity * Constants::max_player_speed * Constants::float_timestep.count();
+        player.getPosition() += player.velocity * Constants::max_player_speed * Constants::double_timestep.count();
     }
     for(auto& projectile : projectiles) {
-        projectile.getPosition() += projectile.velocity * Constants::projectile_speed * Constants::float_timestep.count();
+        projectile.getPosition() += projectile.velocity * Constants::projectile_speed * Constants::double_timestep.count();
     }
 }
 
@@ -256,80 +284,57 @@ bool Game::checkProjectileCollisions(const Projectile& projectile) {
 
 void Game::moveAlongNormal(Player& player, const Circle& object) {
     // TODO move player to collision point along normal(sliding), currently it pushes back
-    player.getPosition() += (player.velocity * Constants::max_player_speed * Constants::float_timestep.count()) * -1;
+    player.getPosition() += (player.velocity * Constants::max_player_speed * Constants::double_timestep.count()) * -1;
 }
 
 void Game::moveAlongNormal(Player& player, const Rectangle& object) {
     // TODO move player to collision point along normal(sliding), currently it pushes back
-    player.getPosition() += (player.velocity * Constants::max_player_speed * Constants::float_timestep.count()) * -1;
-}
-
-void copyPointToBuf(unsigned char* buf, const Point& point) {
-    *reinterpret_cast<double*>(buf) = point.x;
-    buf += 8;
-    *reinterpret_cast<double*>(buf) = point.y;
+    player.getPosition() += (player.velocity * Constants::max_player_speed * Constants::double_timestep.count()) * -1;
 }
 
 Message Game::serializeGameState() {
     uint16_t players_size = static_cast<uint16_t>(players.size());
     uint16_t projectiles_size = static_cast<uint16_t>(projectiles.size());
-    const uint32_t size = 5 + Constants::serialized_player_size * players_size + Constants::serialized_projectile_size * projectiles_size;
-    unsigned char* buf = new unsigned char[size];
-    Message message = {.size = size, .data = buf};
-    *buf = DataType::GAME_STATE;
-    buf += 1;
-    *reinterpret_cast<uint16_t*>(buf) = players_size;
-    buf += 2;
-    *reinterpret_cast<uint16_t*>(buf) = projectiles_size;
-    buf += 2;
+    unsigned char* buf = new unsigned char[5 + players_size * sizeof(Player) + projectiles_size * sizeof(projectiles_size)];
+    uint32_t size = 0;
+    Message message = {.data = buf};
+    size += copyToBuf<uint8_t>(buf, DataType::GAME_STATE);
+    size += copyToBuf<uint16_t>(buf, players_size);
+    size += copyToBuf<uint16_t>(buf, projectiles_size);
     for(const auto& [player_id, player] : players) {
-        *reinterpret_cast<uint16_t*>(buf) = static_cast<uint16_t>(player.player_id);
-        buf += 2;
-        *buf = player.health;
-        buf += 1;
-        copyPointToBuf(buf, player.getPosition());
-        buf += 16;
-        copyPointToBuf(buf, player.velocity);
-        *reinterpret_cast<float*>(buf) = player.view_angle;
-        buf += 4;
+        size += copyToBuf<uint16_t>(buf, player.player_id);
+        size += copyToBuf<uint8_t>(buf, player.alive);
+        size += copyToBuf<uint8_t>(buf, player.health);
+        size += copyToBuf<double>(buf, player.getPosition());
+        size += copyToBuf<double>(buf, player.velocity);
+        size += copyToBuf<float>(buf, player.orientation_angle);
     }
     for(const auto& projectile : projectiles) {
-        *reinterpret_cast<uint16_t*>(buf) = static_cast<uint16_t>(projectile.owner_id);
-        buf += 2;
-        copyPointToBuf(buf, projectile.getPosition());
-        buf += 16;
-        copyPointToBuf(buf, projectile.velocity);
-        buf += 16;
+        size += copyToBuf<uint16_t>(buf, projectile.owner_id);
+        size += copyToBuf<double>(buf, projectile.getPosition());
+        size += copyToBuf<double>(buf, projectile.velocity);
     }
+    message.size = size;
     return message;
 }
 
 Message Game::serializeMap() {
-    constexpr uint16_t wall_sizeof = 4 * 16;
-    constexpr uint16_t obstacle_sizeof = 3 * 8;
     uint16_t walls_size = static_cast<uint16_t>(game_map.walls.size());
     uint16_t obstacles_size = static_cast<uint16_t>(game_map.obstacles.size());
-    const uint32_t size = 5 + walls_size * wall_sizeof + obstacles_size * obstacle_sizeof;
-    unsigned char* buf = new unsigned char[size];
-    Message message = {.size = size, .data = buf};
-    *buf = DataType::GAME_MAP;
-    buf += 1;
-    *reinterpret_cast<uint16_t*>(buf) = walls_size;
-    buf += 2;
-    *reinterpret_cast<uint16_t*>(buf) = obstacles_size;
-    buf += 2;
+    unsigned char* buf = new unsigned char[5 + walls_size * sizeof(Rectangle) + obstacles_size * sizeof(Circle)];
+    uint32_t size = 0;
+    Message message = {.data = buf};
+    size += copyToBuf<uint8_t>(buf, DataType::GAME_MAP);
+    size += copyToBuf<uint16_t>(buf, walls_size);
+    size += copyToBuf<uint16_t>(buf, obstacles_size);
     for(const auto& wall : game_map.walls) {
-        copyPointToBuf(buf, wall.points[0]);
-        copyPointToBuf(buf + 16, wall.points[1]);
-        copyPointToBuf(buf + 32, wall.points[2]);
-        copyPointToBuf(buf + 48, wall.points[3]);
-        buf += 64;
+        for(int i = 0; i < 4; ++i)
+            size += copyToBuf<double>(buf, wall.points[i]);
     }
     for(const auto& obstacle : game_map.obstacles) {
-        copyPointToBuf(buf, obstacle.centre);
-        buf += 16;
-        *reinterpret_cast<double*>(buf) = obstacle.r;
-        buf += 8;
+        size += copyToBuf<double>(buf, obstacle.centre);
+        size += copyToBuf<double>(buf, obstacle.r);
     }
+    message.size = size;
     return message;
 }

@@ -2,7 +2,7 @@
 #include <array>
 #include <ostream>
 
-// type of data sent to client
+// type of data sent and received from client
 enum DataType {
     // OUTGOING
     WELCOME_MESSAGE = 0,
@@ -10,9 +10,9 @@ enum DataType {
     GAME_STATE = 2,
     // INCOMING
     SPAWN = 10,
-    CHANGE_ORIENTATION = 11,
-    CHANGE_MOVEMENT_DIRECTION = 12,
-
+    SHOOT = 11,
+    CHANGE_ORIENTATION = 12,
+    CHANGE_MOVEMENT_DIRECTION = 13,
 
     OTHER = 999
 };

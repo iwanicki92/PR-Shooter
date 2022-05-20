@@ -1,6 +1,8 @@
 # folders
 bin/
 obj/
+.venv/
+Client/__pycache__
 
 # Prerequisites
 *.d

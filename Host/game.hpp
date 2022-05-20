@@ -20,12 +20,12 @@ struct Projectile : Circle {
 
 struct Player : Circle {
     size_t player_id;
+    bool alive = false;
     uint8_t health = 100;
     Vector velocity = {0, 0};
-    float view_angle = 0;
-    bool alive = false;
+    float orientation_angle = 0;
 
-    Player();
+    Player(size_t player_id = 0);
     Point& getPosition();
     const Point& getPosition() const;
 };
@@ -56,9 +56,9 @@ private:
     void sendThread();
     void receiveThread();
     void sendWelcomeMessage(size_t player_id);
-    void sendCurrentMap(Message msg, size_t player_id);
     void moveAlongNormal(Player& player, const Circle& object);
     void moveAlongNormal(Player& player, const Rectangle& object);
+    void shootProjectile(size_t player_id);
     void spawnPlayer(size_t player_id);
     void changePlayerOrientation(size_t player_id, float angle);
     void changePlayerMovement(size_t player_id, double velocity_x, double velocity_y);
@@ -67,4 +67,6 @@ private:
     std::unordered_map<size_t, Player> players;
     std::vector<Projectile> projectiles;
     std::mutex update_mutex;
+
+    std::unordered_map<size_t, std::pair<size_t, size_t>> packets;
 };
