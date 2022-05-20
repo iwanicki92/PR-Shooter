@@ -293,7 +293,7 @@ bool Game::checkProjectileCollisions(const Projectile& projectile) {
 
 std::pair<Vector, double> calculateDisplacement(const Circle& circle1, const Circle circle2) {
     double dist = distance(circle1.centre, circle2.centre);
-    double displacement = Constants::player_radius + circle2.r - dist; // displacement length
+    double displacement = circle1.r + circle2.r - dist; // displacement length
     Vector displacement_vector = (circle1.centre - circle2.centre);
     displacement_vector /= displacement_vector.length(); // normalized displacement vector
     return std::make_pair(displacement_vector, displacement);
