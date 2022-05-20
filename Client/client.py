@@ -51,6 +51,8 @@ class Game:
                     self.change_movement(Direction.UP, True)
                 if event.key == pygame.K_DOWN or event.key == pygame.K_s:
                     self.change_movement(Direction.DOWN, True)
+                if event.key == pygame.K_SPACE:
+                    self.send_message(DataType.SPAWN)
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_a:
@@ -84,6 +86,8 @@ class Game:
 
     def drawGame(self):
         for player in self.game_state.players:
+            if player.alive == False:
+                continue
             color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
             pygame.draw.circle(self.display, color, player.position, self.player_radius)
 

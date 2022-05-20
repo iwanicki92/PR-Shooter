@@ -4,6 +4,7 @@
 #include <iostream>
 #include <thread>
 #include <atomic>
+#include <random>
 
 // set by signal handler, waited on by run()
 volatile static sig_atomic_t stop_signal = false;
@@ -177,8 +178,13 @@ void Game::shootProjectile(size_t player_id) {
 }
 
 void Game::spawnPlayer(size_t player_id) {
-    players[player_id].alive = true;
-    // TODO set random position inside boundaries
+    Player& player = players[player_id];
+    if(player.alive == false) {
+        auto r_engine = std::default_random_engine(std::random_device()());
+        auto dist = std::uniform_int_distribution(static_cast<int>(Constants::player_radius), 500);
+        player.alive = true;
+        player.centre = Point(dist(r_engine), dist(r_engine));
+    }
 }
 
 void Game::changePlayerOrientation(size_t player_id, float angle) {
@@ -218,6 +224,9 @@ void Game::sendWelcomeMessage(size_t player_id) {
 
 void Game::updatePositions() {
     for(auto& [player_id, player] : players) {
+        if(player.alive == false) {
+            continue;
+        }
         player.getPosition() += player.velocity * Constants::max_player_speed * Constants::double_timestep.count();
     }
     for(auto& projectile : projectiles) {
@@ -244,7 +253,7 @@ void Game::checkCollisions() {
             if(&second_player == &player) {
                 continue;
             }
-            if(checkCollision(player, second_player)) {
+            else if(checkCollision(player, second_player)) {
                 moveAlongNormal(player, second_player);
             }
         }
