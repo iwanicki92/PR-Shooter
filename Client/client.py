@@ -29,6 +29,10 @@ class Game:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.s_connection.close()
+    
+    def calculateOrientationAngle(self, player_position: Point, mouse_position: Point):
+        return math.atan2(-(player_position.y - mouse_position.y), mouse_position.x - player_position.x)
+
 
     def change_movement(self, dir: Direction, add: bool):
         if add == True:
@@ -42,6 +46,11 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.run = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    # TODO pygame.BUTTON_LEFT doesn't work, make our own enums?
+                    # TODO pygame detects only one click, change it somehow?
+                    self.send_message(DataType.SHOOT)
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_a:
                     self.change_movement(Direction.LEFT, True)
@@ -100,7 +109,7 @@ class Game:
     def send_message(self, data_type: Literal[DataType.SPAWN, DataType.SHOOT, DataType.CHANGE_ORIENTATION, DataType.CHANGE_MOVEMENT_DIRECTION]):
         if self.connected == False:
             return
-        if data_type == DataType.SPAWN or type == DataType.SHOOT:
+        if data_type == DataType.SPAWN or data_type == DataType.SHOOT:
             self.s_connection.send(bytes([1, 0, 0, 0, data_type]))
         elif data_type == DataType.CHANGE_ORIENTATION:
             self.s_connection.send(bytes([5, 0, 0, 0, data_type]) + struct.pack('f', self.angle))
@@ -133,23 +142,24 @@ class Game:
         size = int.from_bytes(val, 'little')
         rest = BytesIO(self.s_connection.recv(size))
         type = Game.read_int(rest, 1)
-        #print(size, f', type({type}): ', sep='', end='')
-        #for byte in rest.getbuffer():
-        #        print(byte, ' ', sep='', end='')
-        #print(', ', end='')
         if type == DataType.WELCOME_MESSAGE:
             self.my_own_id = Game.read_int(rest, 2)
             self.player_radius = Game.read_float(rest, 'd')
             self.projectile_radius = Game.read_float(rest, 'd')
-            #print(f'Welcome msg = new player id={self.my_own_id}, player radius={self.player_radius}, projectile radius={self.projectile_radius}')
         elif type == DataType.GAME_MAP:
             self.map = Game.get_map_from_bytes(rest)
-            #print('Map msg!', self.map, sep='\n')
         elif type == DataType.GAME_STATE:
             self.game_state = Game.get_gamestate_from_bytes(rest)
-            #print(self.game_state)
+            player = next((player for player in self.game_state.players if player.id == self.my_own_id), None)
+            if player is not None and player.alive:
+                # TODO should probably change this to something different
+                angle = self.calculateOrientationAngle(player.position, Point(*pygame.mouse.get_pos()))
+                if angle != self.angle:
+                    self.angle = angle
+                    player.orientation_angle = angle
+                    self.send_message(DataType.CHANGE_ORIENTATION)
         else:
-            #print('Nie wiadomo co to za wiadomość')
+            print('Nie wiadomo co to za wiadomość')
             pass
 
     def get_map_from_bytes(map: BytesIO) -> Map:
@@ -168,6 +178,18 @@ class Game:
         number_of_players = Game.read_int(game_state, 2)
         number_of_projectiles = Game.read_int(game_state, 2)
         players = [readPlayer() for _ in range(number_of_players)]
+        """ FIXME sometimes got this error when tried to join as a second player with close to 250 projectiles
+                    possible bug in client or host
+        File "client.py", line 181, in get_gamestate_from_bytes
+            projectiles = [Projectile(Game.read_int(game_state, 2), Game.read_point(game_state),
+        File "client.py", line 182, in <listcomp>
+            Game.read_point(game_state)) for _ in range(number_of_projectiles)]
+        File "client.py", line 128, in read_point
+            return Point(Game.read_float(point, 'd'), Game.read_float(point, 'd'))
+        File "client.py", line 125, in read_float
+            return struct.unpack(float_type, buf)[0]
+        struct.error: unpack requires a buffer of 8 bytes
+        """
         projectiles = [Projectile(Game.read_int(game_state, 2), Game.read_point(game_state), 
                                     Game.read_point(game_state)) for _ in range(number_of_projectiles)]
         return GameState(players, projectiles)

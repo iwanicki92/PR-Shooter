@@ -2,6 +2,7 @@
 #include "basic_structs.hpp"
 #include "server_wrapper.hpp"
 #include <vector>
+#include <string>
 #include <unordered_map>
 #include <chrono>
 #include <array>
@@ -11,9 +12,10 @@
 
 struct Projectile : Circle {
     size_t owner_id;
-    Vector velocity = {0, 0};
+    Vector velocity;
 
     Projectile();
+    Projectile(size_t owner_id, Point start_position, Vector velocity);
     Point& getPosition();
     const Point& getPosition() const;
 };
@@ -35,6 +37,12 @@ struct Map {
     // cointains border made up from rectangles
     std::vector<Rectangle> walls;
     std::vector<Circle> obstacles;
+};
+
+struct PairHash {
+    size_t operator()(std::pair<uint16_t, uint16_t> p) const noexcept {
+        return size_t(p.first) << 16 | p.second;
+    }
 };
 
 class Game {
@@ -69,5 +77,11 @@ private:
     std::vector<Projectile> projectiles;
     std::mutex update_mutex;
 
+    // debug
     std::unordered_map<size_t, std::pair<size_t, size_t>> packets;
+    // calc_time[(no_players, no_projectiles)]["collision"] = (no_collisions, total_time)
+    std::unordered_map<std::pair<uint16_t, uint16_t>, // <key
+                        std::unordered_map<std::string, // value: map<key,...
+                                            std::pair<size_t, std::chrono::microseconds>>, // ...value>
+                        PairHash> calc_time; // hash>: map<pair, map<string, pair>, hash>
 };

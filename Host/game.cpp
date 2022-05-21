@@ -5,6 +5,7 @@
 #include <thread>
 #include <atomic>
 #include <random>
+#include <cmath>
 
 // set by signal handler, waited on by run()
 volatile static sig_atomic_t stop_signal = false;
@@ -42,6 +43,9 @@ copyToBuf(unsigned char*& buf, ArgType point) {
 
 Projectile::Projectile() : Circle(Point(), Constants::projectile_radius) {}
 
+Projectile::Projectile(size_t owner_id, Point start_position, Vector velocity) :
+            Circle(start_position, Constants::projectile_radius), owner_id(owner_id), velocity(velocity) {}
+
 Point& Projectile::getPosition() {
     return centre;
 }
@@ -78,6 +82,18 @@ Game::~Game() {
     for(const auto& [id, number] : packets) {
         std::cout << "Client(" << id << "): recv = " << number.first << ", send = " << number.second << "\n";
     }
+    auto map_size = game_map.obstacles.size() + game_map.walls.size();
+    std::cout << "Map size: " << map_size << "\n";
+    for(const auto& [sizes, time_map] : calc_time) {
+        const auto& [players_size, projectiles_size] = sizes;
+        std::cout << "Total objects: " << players_size + projectiles_size + map_size << ", NO_Players: " << players_size << ", NO_Projectiles: " << projectiles_size <<", ";
+        for(const auto& [timed_function, time] : time_map) {
+            const auto& [no_time, total_time] = time;
+            const auto elapsed_time = (total_time / no_time).count();
+            std::cout << timed_function << ": " << elapsed_time << " us, ";
+        }
+        std::cout << "\b\b \n";
+    }
 }
 
 void Game::run() {
@@ -103,9 +119,19 @@ void Game::updateThread() {
         if(accumulator > Constants::timestep) {
             update_mutex.lock();
             while(accumulator > Constants::timestep) {
+                Timer start;
                 updatePositions();
+                auto update_duration = start.restart();
                 checkCollisions();
+                auto collision_duration = start.duration();
                 accumulator -= Constants::timestep;
+                auto& update = calc_time[std::make_pair(players.size(), projectiles.size())];
+                auto& [no_collision, collision_total_time] = update["collision"];
+                auto& [no_update, update_total_time] = update["update"];
+                no_collision += 1;
+                collision_total_time += update_duration;
+                no_update += 1;
+                update_total_time += collision_duration;
             }
             update_mutex.unlock();
         }
@@ -116,7 +142,12 @@ void Game::sendThread() {
     while(stop.load() == false) {
         std::this_thread::sleep_for(Constants::send_delay);
         update_mutex.lock();
+        Timer start = Timer();
         Message game_state = serializeGameState();
+        auto serialization_duration = start.duration();
+        auto& [no_serialize, serialize_total_time] = calc_time[std::make_pair(players.size(), projectiles.size())]["serialize"];
+        no_serialize += 1;
+        serialize_total_time += serialization_duration;
         for(auto& [player_id, player] : players) {
             packets[player_id].second += 1;
         }
@@ -134,6 +165,7 @@ void Game::receiveThread() {
 void Game::handleMessage(IncomingMessageWrapper&& message) {
     if(message.getType() != MessageType::EMPTY) {
         update_mutex.lock();
+        auto start = Timer();
         switch(message.getType()) {
             case MessageType::NEW_CONNECTION:
                 createNewPlayer(message.getClientId());
@@ -168,13 +200,23 @@ void Game::handleMessage(IncomingMessageWrapper&& message) {
                 }
                 break;
         }
+        auto duration = start.duration();
+        auto& [no_receive, receive_total_time] = calc_time[std::make_pair(players.size(), projectiles.size())]["receive"];
+        no_receive += 1;
+        receive_total_time += duration;
         ++packets[message.getClientId()].first;
         update_mutex.unlock();
     }
 }
 
 void Game::shootProjectile(size_t player_id) {
-    // TODO create projectile
+    const auto& player = players[player_id];
+    if(player.alive == false) {
+        return;
+    }
+    Vector normalized_direction(cos(player.orientation_angle), sin(player.orientation_angle));
+    Projectile projectile(player_id, player.centre + normalized_direction * player.r, normalized_direction);
+    projectiles.push_back(projectile);
 }
 
 void Game::spawnPlayer(size_t player_id) {
@@ -279,7 +321,7 @@ bool Game::checkProjectileCollisions(const Projectile& projectile) {
         }
     }
     for(auto& [player_id, player] : players) {
-        if(player.alive == true && checkCollision(projectile, player)) {
+        if(player.alive == true && player_id != projectile.owner_id && checkCollision(projectile, player)) {
             if(player.health <= Constants::projectile_damage) {
                 player.alive = false;
             } else {
@@ -319,7 +361,7 @@ void Game::moveAlongNormal(Player& player, const Rectangle& object) {
 Message Game::serializeGameState() {
     uint16_t players_size = static_cast<uint16_t>(players.size());
     uint16_t projectiles_size = static_cast<uint16_t>(projectiles.size());
-    unsigned char* buf = new unsigned char[5 + players_size * sizeof(Player) + projectiles_size * sizeof(projectiles_size)];
+    unsigned char* buf = new unsigned char[5 + players_size * sizeof(Player) + projectiles_size * sizeof(Projectile)];
     uint32_t size = 0;
     Message message = {.data = buf};
     size += copyToBuf<uint8_t>(buf, DataType::GAME_STATE);
