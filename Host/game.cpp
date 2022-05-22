@@ -475,7 +475,8 @@ void Game::moveAlongNormal(Player& player, const Circle& object) {
 
 void Game::moveAlongNormal(Player& player, const Rectangle& object) {
     // FIXME wrong displacement when colliding with rectangle edges
-    // maybe change to movement along tangent(styczna)
+    // maybe change to movement along tangent(styczna) or displacement along tangent's normal
+    // detecting edge: check if rectangle's points are inside circle? if yes then edge
     if(checkCollision(player, object.points[0], object.points[1])) {
         moveAlongNormal(player, object.points[1], object.points[0]);
     }
