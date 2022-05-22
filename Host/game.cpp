@@ -308,6 +308,9 @@ void Game::spawnPlayer(size_t player_id) {
         do {
         player.centre = Point(dist_x(r_engine), dist_y(r_engine));
         } while(!isInsideBorder(player.centre));
+        // FIXME add check to make sure player isn't inside another rectangle
+        // if players centre is outside then collision check will push him out
+        // but if it's inside player will be stuck inside wall
     }
 }
 
@@ -471,8 +474,20 @@ void Game::moveAlongNormal(Player& player, const Circle& object) {
 }
 
 void Game::moveAlongNormal(Player& player, const Rectangle& object) {
-    // TODO move player to collision point along normal(sliding), currently it pushes back
-    player.getPosition() += (player.velocity * Constants::max_player_speed * Constants::double_timestep.count()) * -1;
+    // FIXME wrong displacement when colliding with rectangle edges
+    // maybe change to movement along tangent(styczna)
+    if(checkCollision(player, object.points[0], object.points[1])) {
+        moveAlongNormal(player, object.points[1], object.points[0]);
+    }
+    if(checkCollision(player, object.points[1], object.points[2])) {
+        moveAlongNormal(player, object.points[2], object.points[1]);
+    }
+    if(checkCollision(player, object.points[2], object.points[3])) {
+        moveAlongNormal(player, object.points[3], object.points[2]);
+    }
+    if(checkCollision(player, object.points[3], object.points[0])) {
+        moveAlongNormal(player, object.points[0], object.points[3]);
+    }
 }
 
 Message Game::serializeGameState() {
