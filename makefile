@@ -7,6 +7,7 @@ DEBUG=TRUE
 # PRINT_DEBUG=0 - no printing, 1 mutex locks, 2 array locks, 3 array functions(push/get...)
 PRINT_DEBUG=-1
 DEBUG_DEFINES=
+OPTIMIZATION=O0
 extended_cflags=-pedantic -Wall -Wextra -Wcast-align -Wcast-qual -Wdisabled-optimization -Wformat=2 -Winit-self -Wlogical-op -Wmissing-include-dirs -Wredundant-decls -Wshadow -Wsign-conversion -Wstrict-overflow=5 -Wswitch-default -Wundef -Werror -Wno-unused
 extended_cxxflags=-Wctor-dtor-privacy -Wnoexcept -Wold-style-cast -Woverloaded-virtual -Wsign-promo -Wstrict-null-sentinel
 bin_dir=./bin
@@ -27,8 +28,8 @@ dependencies=$(server_objs:%.o=%.d) $(host_objs:%.o=%.d)
 ifeq ($(DEBUG), TRUE)
 override DEBUG_DEFINES+=PRINT_DEBUG=$(PRINT_DEBUG)
 override CPPFLAGS+=$(foreach DEFINE,$(DEBUG_DEFINES),-D $(DEFINE))
-override CFLAGS+=-fsanitize=address -fno-omit-frame-pointer -O0
-override CXXFLAGS+=-fsanitize=address -fno-omit-frame-pointer -O0
+override CFLAGS+=-fsanitize=address -fno-omit-frame-pointer -$(OPTIMIZATION)
+override CXXFLAGS+=-fsanitize=address -fno-omit-frame-pointer -$(OPTIMIZATION)
 endif
 
 # if EXTENDED_FLAGS=TRUE then add warning flags to CFLAGS(C) and CXXFLAGS(C++)

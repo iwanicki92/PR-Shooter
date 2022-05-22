@@ -1,0 +1,16 @@
+# Comments start with #
+# Border starts with B
+# Wall starts with W
+# Obstacle starts with O
+# Borders - polygon e.g. triangle: B,P1_x,P1_y,P2_x,P2_y,P3_x,P3_y
+# Walls - 4 points: W,P1_x,P1_y,P2_x,P2_y,P3_x,P3_y,P4_x,P4_y
+# Obstacles - Circles: O,P1_x,P1_y,R
+B,-1000,-1000,1000,-1000,1000,1000,-1000,1000
+W,-1000,-50,-200,-50,-200,50,-1000,50
+W,200,-50,1000,-50,1000,50,200,50
+W,100,150,200,150,200,200,100,200
+W,0,400,300,200,400,250,150,380
+O,-500,500,100
+O,500,500,100
+O,500,-500,100
+O,-500,-500,100

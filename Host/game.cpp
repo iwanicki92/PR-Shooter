@@ -6,6 +6,8 @@
 #include <atomic>
 #include <random>
 #include <cmath>
+#include <fstream>
+#include <sstream>
 
 // set by signal handler, waited on by run()
 volatile static sig_atomic_t stop_signal = false;
@@ -74,6 +76,73 @@ Game::Game() {
         sigfillset(&action.sa_mask);
         sigaction(SIGINT, &action, NULL);
         first_init = true;
+    }
+}
+
+Game::Game(std::string map_name) : Game() {
+    getMap(map_name);
+}
+
+std::pair<char, std::vector<double>> splitMapLine(const std::string& line) {
+    std::vector<double> values;
+    std::istringstream stream(line);
+    std::string type;
+    std::getline(stream, type, ',');
+    if(type[0] == '#') {
+        return std::make_pair(type[0], std::vector<double>());
+    }
+    std::string value;
+    while(std::getline(stream, value, ',')) {
+        values.push_back(std::stod(value));
+    }
+    return {type[0], values};
+}
+
+template<class T, class U>
+std::ostream& operator<<(std::ostream& out, const std::vector<T, U>& vec) {
+    out << "[";
+    for(auto iter = vec.begin(); iter != vec.end() ;) {
+        out << *iter;
+        ++iter;
+        if(iter != vec.end()) {
+            out << ", ";
+        }
+    }
+    out << "]";
+    return out;
+}
+
+void Game::getMap(std::string map_name) {
+    // add mutex locking before using outside of constructor
+    std::fstream map(std::string("../Maps/") + map_name, map.in);
+    if(!map.is_open()) {
+        std::cout << "Couldn't open " << map_name << "\n";
+    } else {
+        std::string line;
+        while(std::getline(map, line)) {
+            auto [type, values] = splitMapLine(line);
+            switch(type) {
+                case 'B':
+                    for(size_t i = 0; i < values.size(); i += 2) {
+                        game_map.borders.push_back(Point(values[i], values[i+1]));
+                    }
+                    break;
+                case 'W':
+                    game_map.walls.push_back(Rectangle(Point(values[0], values[1]), Point(values[2], values[3]),
+                                                        Point(values[4], values[5]), Point(values[6], values[7])));
+                    break;
+                case 'O':
+                {
+                    Circle obstacle(Point(values[0], values[1]), values[2]);
+                    game_map.obstacles.push_back(obstacle);
+                }
+                    break;
+                case '#':
+                    break;
+                default:
+                    std::cout << "Unknown type: " << type << ", values = " << values;
+            }
+        }
     }
 }
 

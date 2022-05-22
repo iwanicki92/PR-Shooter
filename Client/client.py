@@ -16,6 +16,7 @@ class Game:
         self.map = Map()
         self.game_state = GameState()
         self.my_own_id = -1
+        self.draw_offset: Point = Point(0, 0)
         self.s_connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.s_connection.connect(('localhost', 5000))
@@ -77,10 +78,10 @@ class Game:
 
     def start_game(self):
         pygame.init()
-        display_width = 800
-        display_height = 600
+        self.display_width = 800
+        self.display_height = 600
 
-        self.display = pygame.display.set_mode((display_width, display_height))
+        self.display = pygame.display.set_mode((self.display_width, self.display_height))
         self.display.fill((255,255,255))
 
         pygame.display.set_caption('PR-Shooter')
@@ -98,10 +99,17 @@ class Game:
             if player.alive == False:
                 continue
             color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
-            pygame.draw.circle(self.display, color, player.position, self.player_radius)
+            pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius)
 
         for projectile in self.game_state.projectiles:
-            pygame.draw.circle(self.display, (255, 165, 0), projectile.position, self.projectile_radius)
+            pygame.draw.circle(self.display, (255, 165, 0), sub_points(projectile.position, self.draw_offset), self.projectile_radius)
+
+        for obstacle in self.map.obstacles:
+            pygame.draw.circle(self.display, (0,0,0), sub_points(obstacle.position, self.draw_offset), obstacle.radius)
+        
+        for wall in self.map.walls:
+            pygame.draw.polygon(self.display, (0,0,0), [sub_points(vertex, self.draw_offset) for vertex in wall.vertices])
+        
         pygame.display.update()
         self.display.fill((255,255,255))
 
@@ -152,8 +160,9 @@ class Game:
             self.game_state = Game.get_gamestate_from_bytes(rest)
             player = next((player for player in self.game_state.players if player.id == self.my_own_id), None)
             if player is not None and player.alive:
+                self.draw_offset = add_points(player.position, Point(-self.display_width / 2, -self.display_height / 2))
                 # TODO should probably change this to something different
-                angle = self.calculateOrientationAngle(player.position, Point(*pygame.mouse.get_pos()))
+                angle = self.calculateOrientationAngle(sub_points(player.position, self.draw_offset), Point(*pygame.mouse.get_pos()))
                 if angle != self.angle:
                     self.angle = angle
                     player.orientation_angle = angle
@@ -165,8 +174,8 @@ class Game:
     def get_map_from_bytes(map: BytesIO) -> Map:
         number_of_walls = Game.read_int(map, 2)
         number_of_obstacles = Game.read_int(map, 2)
-        walls = [(Game.read_point(map), Game.read_point(map), Game.read_point(map), Game.read_point(map)) for _ in range(number_of_walls)]
-        obstacles = [(Game.read_point(map), Game.read_float(map, 'd')) for _ in range(number_of_obstacles)]
+        walls = [Rectangle(Game.read_point(map), Game.read_point(map), Game.read_point(map), Game.read_point(map)) for _ in range(number_of_walls)]
+        obstacles = [Circle(Game.read_point(map), Game.read_float(map, 'd')) for _ in range(number_of_obstacles)]
         return Map(walls, obstacles)
     
     def get_gamestate_from_bytes(game_state: BytesIO) -> GameState:

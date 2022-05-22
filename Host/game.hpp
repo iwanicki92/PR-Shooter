@@ -33,7 +33,7 @@ struct Player : Circle {
 };
 
 struct Map {
-    std::vector<Point> border_polygon;
+    std::vector<Point> borders;
     // cointains border made up from rectangles
     std::vector<Rectangle> walls;
     std::vector<Circle> obstacles;
@@ -48,10 +48,12 @@ struct PairHash {
 class Game {
 public:
     Game();
+    Game(std::string map_name);
     ~Game();
     void run();
 
 private:
+    void getMap(std::string map_name);
     void handleMessage(IncomingMessageWrapper&& message);
     void createNewPlayer(size_t player_id);
     void deletePlayer(size_t player_id);

@@ -2,10 +2,15 @@ from __future__ import annotations
 from collections import namedtuple
 from enum import Flag, IntEnum, auto
 import math
-from typing import Tuple
 
 Point = namedtuple('Point', ['x', 'y'], defaults=[0,0])
 Vector = Point
+
+def add_points(a: Point, b: Point) -> Point:
+    return Point(a.x + b.x, a.y + b.y)
+
+def sub_points(a: Point, b: Point) -> Point:
+    return Point(a.x - b.x, a.y - b.y)
 
 class Direction(Flag):
     LEFT = auto()
@@ -56,12 +61,25 @@ class DataType(IntEnum):
 
     OTHER = 999
     
+class Circle:
+    def __init__(self, position: Point, radius: float) -> None:
+        self.position = position
+        self.radius = radius
+
+class Polygon:
+    def __init__(self, vertices: list[Point]):
+        self.vertices = vertices
+
+class Rectangle:
+    def __init__(self, P1: Point, P2: Point, P3: Point, P4: Point) -> None:
+        self.vertices = (P1, P2, P3, P4)
+
 class Map:
-    def __init__(self, walls: list[Tuple[Point, Point, Point, Point]] = [], obstacles: list[tuple[Point, float]] = []) -> None:
+    def __init__(self, walls: list[Rectangle] = [], obstacles: list[Circle] = []) -> None:
         # wall = rectangle: ((X1, Y1), (X2, Y2), (X3, Y3), (X4, Y4))
-        self.walls: list[Tuple[Point, Point, Point, Point]] = walls
+        self.walls: list[Rectangle] = walls
         # obstacle = circle: ((X, Y), R)
-        self.obstacles: list[tuple[Point, float]] = obstacles
+        self.obstacles: list[Circle] = obstacles
 
     def __str__(self) -> str:
         return self.walls.__str__() + '\n' + self.obstacles.__str__()
