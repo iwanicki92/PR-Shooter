@@ -1,5 +1,6 @@
 from __future__ import annotations
 import struct
+import time
 from typing import Literal
 import pygame
 import socket
@@ -52,6 +53,9 @@ class Game:
                     # TODO pygame.BUTTON_LEFT doesn't work, make our own enums?
                     # TODO pygame detects only one click, change it somehow?
                     self.send_message(DataType.SHOOT)
+            if event.type == pygame.VIDEORESIZE:
+                self.display_width = event.w
+                self.display_height = event.h
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_a:
                     self.change_movement(Direction.LEFT, True)
@@ -78,19 +82,40 @@ class Game:
 
     def start_game(self):
         pygame.init()
-        self.display_width = 800
-        self.display_height = 600
 
-        self.display = pygame.display.set_mode((self.display_width, self.display_height))
+        self.display = pygame.display.set_mode((0,0), pygame.RESIZABLE)
+        self.display_width, self.display_height = self.display.get_size()
         self.display.fill((255,255,255))
 
         pygame.display.set_caption('PR-Shooter')
         pygame.key.set_repeat()
 
+        total_event_handler, no_event_handler = 0,0
+        total_receive, no_receive = 0,0
+        total_draw, no_draw = 0,0
+        print_time = time.perf_counter()
+
         while self.run:
+            start = time.perf_counter_ns()
             self.event_handler()
+            total_event_handler += time.perf_counter_ns() - start
+            no_event_handler +=1
+
+            start = time.perf_counter_ns()
             self.receive_message()
+            total_receive += time.perf_counter_ns() - start
+            no_receive +=1
+
+            start = time.perf_counter_ns()
             self.drawGame()
+            total_draw += time.perf_counter_ns() - start
+            no_draw += 1
+
+            if time.perf_counter() - print_time > 2:
+                print('Average event handler time: '.rjust(30) + f'{total_event_handler / (no_event_handler * 1e6):10.04f} ms')
+                print('Average message receive time: '.rjust(30) + f'{total_receive / (no_receive * 1e6):10.04f} ms')
+                print('Average draw time: '.rjust(30) + f'{total_draw / (no_draw * 1e6):10.04f} ms\n')
+                print_time = time.perf_counter()
 
         pygame.quit()
 
@@ -109,6 +134,9 @@ class Game:
         
         for wall in self.map.walls:
             pygame.draw.polygon(self.display, (0,0,0), [sub_points(vertex, self.draw_offset) for vertex in wall.vertices])
+
+        if len(self.map.border) > 1:
+            pygame.draw.polygon(self.display, (0,0,0), [sub_points(point, self.draw_offset) for point in self.map.border], 5)
         
         pygame.display.update()
         self.display.fill((255,255,255))
@@ -174,9 +202,11 @@ class Game:
     def get_map_from_bytes(map: BytesIO) -> Map:
         number_of_walls = Game.read_int(map, 2)
         number_of_obstacles = Game.read_int(map, 2)
+        number_of_border_points = Game.read_int(map, 2)
         walls = [Rectangle(Game.read_point(map), Game.read_point(map), Game.read_point(map), Game.read_point(map)) for _ in range(number_of_walls)]
         obstacles = [Circle(Game.read_point(map), Game.read_float(map, 'd')) for _ in range(number_of_obstacles)]
-        return Map(walls, obstacles)
+        border = [Game.read_point(map) for _ in range(number_of_border_points)]
+        return Map(walls, obstacles, border)
     
     def get_gamestate_from_bytes(game_state: BytesIO) -> GameState:
         def readPlayer() -> Player:

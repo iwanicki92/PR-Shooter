@@ -1,9 +1,9 @@
 #include "collisions.h"
 #include <cmath>
 
-double triangleField(Point a, Point b, Point c);
-bool circleLineSegmentCollision(Circle c, Point a, Point b);
-bool ciclePointCollision(Circle c, Point a);
+double triangleArea(const Point& a, const Point& b, const Point& c);
+bool circleLineSegmentCollision(const Circle& c, const Point& a, const Point& b);
+bool ciclePointCollision(const Circle& c, const Point& a);
 
 double square(double x) {
 	return x * x;
@@ -19,12 +19,12 @@ bool checkCollision(const Circle& c1, const Circle& c2) {
 
 bool checkCollision(const Circle& c, const Rectangle& rec) {
 	// 1. Sprawdzenie, czy środek koła(punkt) jest w prostokącie - koło całe w środku czworokąta
-	double field1 = triangleField(rec.points[0], rec.points[1], c.centre);
-	field1 += triangleField(rec.points[1], rec.points[2], c.centre);
-	field1 += triangleField(rec.points[2], rec.points[3], c.centre);
-	field1 += triangleField(rec.points[3], rec.points[0], c.centre);
-	double field2 = triangleField(rec.points[0], rec.points[1], rec.points[2])
-					+ triangleField(rec.points[2], rec.points[3], rec.points[0]);
+	double field1 = triangleArea(rec.points[0], rec.points[1], c.centre);
+	field1 += triangleArea(rec.points[1], rec.points[2], c.centre);
+	field1 += triangleArea(rec.points[2], rec.points[3], c.centre);
+	field1 += triangleArea(rec.points[3], rec.points[0], c.centre);
+	double field2 = triangleArea(rec.points[0], rec.points[1], rec.points[2])
+					+ triangleArea(rec.points[2], rec.points[3], rec.points[0]);
 	if (field1 >= field2 - 0.01 && field1 <= field2 + 0.01)
 		return true;
 	// 2. Sprawdzenie, czy jedna z 4 krawędzi przecina się z kołem - przecinanie się
@@ -41,7 +41,18 @@ bool checkCollision(const Rectangle& rec, const Circle& c) {
 	return checkCollision(c, rec);
 }
 
-double triangleField(Point a, Point b, Point c) {
+bool checkCollision(const Circle& c, const Point& P1, const Point& P2) {
+	return circleLineSegmentCollision(c, P1, P2);
+}
+
+double triangleHeight(const Point& a, const Point& b, const Point& c) {
+	// h_bc = 2 * triangleArea / |bc|
+	return 2 * triangleArea(a,b,c) / distance(b,c);
+}
+
+// triangleArea = sqrt(p(p-|ab|)(p-|bc|)(p-|ca|))
+// p = (|ab|+|bc|+|ca|) / 2
+double triangleArea(const Point& a, const Point& b, const Point& c) {
 	double edge1 = distance(a, b);
 	double edge2 = distance(b, c);
 	double edge3 = distance(c, a);
@@ -49,7 +60,7 @@ double triangleField(Point a, Point b, Point c) {
 	return sqrt(p * (p - edge1) * (p - edge2) * (p - edge3));
 }
 
-bool ciclePointCollision(Circle c, Point a)
+bool ciclePointCollision(const Circle& c, const Point& a)
 {
 	// sprawdzenie, czy punkt znajduje się w kole lub na okręgu
 	double disX = c.centre.x - a.x;
@@ -60,7 +71,7 @@ bool ciclePointCollision(Circle c, Point a)
 	return false;
 }
 
-bool circleLineSegmentCollision(Circle c, Point a, Point b) {
+bool circleLineSegmentCollision(const Circle& c, const Point& a, const Point& b) {
 	if (ciclePointCollision(c, a) || ciclePointCollision(c, b))
 		return true;
 	// znalezienie najbliższego punktu od koła leżącego na lini AB,

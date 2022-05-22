@@ -75,11 +75,12 @@ class Rectangle:
         self.vertices = (P1, P2, P3, P4)
 
 class Map:
-    def __init__(self, walls: list[Rectangle] = [], obstacles: list[Circle] = []) -> None:
+    def __init__(self, walls: list[Rectangle] = [], obstacles: list[Circle] = [], border: list[Point] = []) -> None:
         # wall = rectangle: ((X1, Y1), (X2, Y2), (X3, Y3), (X4, Y4))
         self.walls: list[Rectangle] = walls
         # obstacle = circle: ((X, Y), R)
         self.obstacles: list[Circle] = obstacles
+        self.border: list[Point] = border
 
     def __str__(self) -> str:
         return self.walls.__str__() + '\n' + self.obstacles.__str__()

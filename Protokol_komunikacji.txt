@@ -5,7 +5,7 @@ Prędkość v jest wysyłana jako 2 wartości double 8 bajtowe, v_1, v_2 ∈ <-1
 1. Klient się połączył
 2. Serwer wysyła:
     - pierwsza wiadomość(19 bajtów): 0(1 bajt), id gracza(2 bajty), promień koła gracza(8 bajtów double), promień koła pocisku(8 bajtów double)
-    - druga wiadomość: 1(1 bajt), ilość ścian(2 bajty), ilość przeszkód(2 bajty), n ścian, m przeszkód
+    - druga wiadomość: 1(1 bajt), ilość ścian(2 bajty), ilość przeszkód(2 bajty), ilość punktów poligonu ograniczającego mapę(2 bajty), n ścian, m przeszkód, k punktów
         - Punkt(razem 16 bajtów) - x(8 bajtów double), y(8 bajtów double)
         - ściana(Prostokąt)(razem 64 bajty) - 4 punkty: P1, P2, P3, P4
         - przeszkoda(Koło)(razem 24 bajty) - 1 punkt P1, promień(8 bajtów double)

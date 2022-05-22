@@ -34,7 +34,8 @@ struct Player : Circle {
 
 struct Map {
     std::vector<Point> borders;
-    // cointains border made up from rectangles
+    // border is inside this rectangle(top left, bottom right points)
+    Point top_left, bottom_right;
     std::vector<Rectangle> walls;
     std::vector<Circle> obstacles;
 };
@@ -47,8 +48,7 @@ struct PairHash {
 
 class Game {
 public:
-    Game();
-    Game(std::string map_name);
+    Game(std::string map_name = "map1");
     ~Game();
     void run();
 
@@ -66,11 +66,13 @@ private:
     void sendThread();
     void receiveThread();
     void sendWelcomeMessage(size_t player_id);
+    void moveAlongNormal(Player& player, const Point& P1, const Point& P2);
     void moveAlongNormal(Player& player, const Circle& object);
     void moveAlongNormal(Player& player, const Rectangle& object);
     void moveAlongNormal(Player& player, Player& object);
     void shootProjectile(size_t player_id);
     void spawnPlayer(size_t player_id);
+    bool isInsideBorder(const Point& point) const;
     void changePlayerOrientation(size_t player_id, float angle);
     void changePlayerMovement(size_t player_id, double velocity_x, double velocity_y);
 

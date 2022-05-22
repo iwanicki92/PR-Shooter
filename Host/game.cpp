@@ -21,11 +21,12 @@ struct Constants {
     static constexpr std::chrono::milliseconds send_delay{16};
     static constexpr double epsilon_one = 0.00001;
     // distance traveled per second
-    static constexpr uint16_t max_player_speed = 150;
-    static constexpr uint16_t projectile_speed = 100;
+    static constexpr uint16_t max_player_speed = 300;
+    static constexpr uint16_t projectile_speed = 500;
     static constexpr uint16_t projectile_damage = 10;
     static constexpr double projectile_radius = 4;
     static constexpr double player_radius = 30;
+    static constexpr double border_width = 4;
 };
 
 template <class CopyAs, class ArgType>
@@ -66,7 +67,7 @@ const Point& Player::getPosition() const {
     return centre;
 }
 
-Game::Game() {
+Game::Game(std::string map_name) {
     static bool first_init = false;
     Server::run();
     if(first_init == false) {
@@ -77,9 +78,6 @@ Game::Game() {
         sigaction(SIGINT, &action, NULL);
         first_init = true;
     }
-}
-
-Game::Game(std::string map_name) : Game() {
     getMap(map_name);
 }
 
@@ -113,37 +111,49 @@ std::ostream& operator<<(std::ostream& out, const std::vector<T, U>& vec) {
 }
 
 void Game::getMap(std::string map_name) {
-    // add mutex locking before using outside of constructor
+    // add mutex locking before using outside of constructor(during map change)
     std::fstream map(std::string("../Maps/") + map_name, map.in);
     if(!map.is_open()) {
-        std::cout << "Couldn't open " << map_name << "\n";
-    } else {
-        std::string line;
-        while(std::getline(map, line)) {
-            auto [type, values] = splitMapLine(line);
-            switch(type) {
-                case 'B':
-                    for(size_t i = 0; i < values.size(); i += 2) {
-                        game_map.borders.push_back(Point(values[i], values[i+1]));
-                    }
-                    break;
-                case 'W':
-                    game_map.walls.push_back(Rectangle(Point(values[0], values[1]), Point(values[2], values[3]),
-                                                        Point(values[4], values[5]), Point(values[6], values[7])));
-                    break;
-                case 'O':
-                {
-                    Circle obstacle(Point(values[0], values[1]), values[2]);
-                    game_map.obstacles.push_back(obstacle);
-                }
-                    break;
-                case '#':
-                    break;
-                default:
-                    std::cout << "Unknown type: " << type << ", values = " << values;
-            }
+        map.open(std::string("Maps/") + map_name, map.in);
+        if(!map.is_open()) {
+            std::cout << "Couldn't open ../Maps/" << map_name << " or Maps/" << map_name << "\n";
+            return;
         }
     }
+    std::string line;
+    while(std::getline(map, line)) {
+        auto [type, values] = splitMapLine(line);
+        switch(type) {
+            case 'B':
+                for(size_t i = 0; i < values.size(); i += 2) {
+                    game_map.borders.push_back(Point(values[i], values[i+1]));
+                }
+                break;
+            case 'W':
+                game_map.walls.push_back(Rectangle(Point(values[0], values[1]), Point(values[2], values[3]),
+                                                    Point(values[4], values[5]), Point(values[6], values[7])));
+                break;
+            case 'O':
+            {
+                Circle obstacle(Point(values[0], values[1]), values[2]);
+                game_map.obstacles.push_back(obstacle);
+            }
+                break;
+            case '#':
+                break;
+            default:
+                std::cout << "Unknown type: " << type << ", values = " << values;
+        }
+    }
+    double min_x, min_y, max_x, max_y;
+    for(const auto& point : game_map.borders) {
+        min_x = std::min(min_x, point.x);
+        min_y = std::min(min_y, point.y);
+        max_x = std::max(max_x, point.x);
+        max_y = std::max(max_y, point.y);
+    }
+    game_map.top_left = Point(min_x, min_y);
+    game_map.bottom_right = Point(max_x, max_y);
 }
 
 Game::~Game() {
@@ -151,7 +161,7 @@ Game::~Game() {
     for(const auto& [id, number] : packets) {
         std::cout << "Client(" << id << "): recv = " << number.first << ", send = " << number.second << "\n";
     }
-    auto map_size = game_map.obstacles.size() + game_map.walls.size();
+    auto map_size = game_map.obstacles.size() + game_map.walls.size() + game_map.borders.size() / 2;
     std::cout << "Map size: " << map_size << "\n";
     for(const auto& [sizes, time_map] : calc_time) {
         const auto& [players_size, projectiles_size] = sizes;
@@ -292,10 +302,18 @@ void Game::spawnPlayer(size_t player_id) {
     Player& player = players[player_id];
     if(player.alive == false) {
         auto r_engine = std::default_random_engine(std::random_device()());
-        auto dist = std::uniform_int_distribution(static_cast<int>(Constants::player_radius), 500);
+        auto dist_x = std::uniform_int_distribution(static_cast<int>(game_map.top_left.x), static_cast<int>(game_map.bottom_right.x));
+        auto dist_y = std::uniform_int_distribution(static_cast<int>(game_map.top_left.y), static_cast<int>(game_map.bottom_right.y));
         player.alive = true;
-        player.centre = Point(dist(r_engine), dist(r_engine));
+        do {
+        player.centre = Point(dist_x(r_engine), dist_y(r_engine));
+        } while(!isInsideBorder(player.centre));
     }
+}
+
+bool Game::isInsideBorder(const Point& point) const {
+    // TODO check if inside polygon(ray casting?)
+    return true;
 }
 
 void Game::changePlayerOrientation(size_t player_id, float angle) {
@@ -350,6 +368,14 @@ void Game::checkCollisions() {
         if(player.alive == false) {
             continue;
         }
+        for(auto& [player_id, second_player] : players) {
+            if(&second_player == &player) {
+                continue;
+            }
+            else if(checkCollision(player, second_player)) {
+                moveAlongNormal(player, second_player);
+            }
+        }
         for(const auto& wall : game_map.walls) {
             if(checkCollision(player, wall)) {
                 moveAlongNormal(player, wall);
@@ -360,13 +386,13 @@ void Game::checkCollisions() {
                 moveAlongNormal(player, obstacle);
             }
         }
-        for(auto& [player_id, second_player] : players) {
-            if(&second_player == &player) {
-                continue;
+        for(size_t i = 0; i < game_map.borders.size() - 1; ++i) {
+            if(checkCollision(player, game_map.borders[i], game_map.borders[i+1])) {
+                moveAlongNormal(player, game_map.borders[i], game_map.borders[i+1]);
             }
-            else if(checkCollision(player, second_player)) {
-                moveAlongNormal(player, second_player);
-            }
+        }
+        if(!game_map.borders.empty() && checkCollision(player, game_map.borders.back(), game_map.borders.front())) {
+            moveAlongNormal(player, game_map.borders.back(), game_map.borders.front());
         }
     }
     for(auto projectile_iter = projectiles.begin(); projectile_iter != projectiles.end();) {
@@ -399,10 +425,18 @@ bool Game::checkProjectileCollisions(const Projectile& projectile) {
             return true;
         }
     }
+    for(size_t i = 0; i < game_map.borders.size() - 1; ++i) {
+            if(checkCollision(projectile, game_map.borders[i], game_map.borders[i+1])) {
+                return true;
+            }
+        }
+    if(!game_map.borders.empty() && checkCollision(projectile, game_map.borders.back(), game_map.borders.front())) {
+        return true;
+    }
     return false;
 }
 
-std::pair<Vector, double> calculateDisplacement(const Circle& circle1, const Circle circle2) {
+std::pair<Vector, double> calculateDisplacement(const Circle& circle1, const Circle& circle2) {
     double dist = distance(circle1.centre, circle2.centre);
     double displacement = circle1.r + circle2.r - dist; // displacement length
     Vector displacement_vector = (circle1.centre - circle2.centre);
@@ -410,11 +444,25 @@ std::pair<Vector, double> calculateDisplacement(const Circle& circle1, const Cir
     return std::make_pair(displacement_vector, displacement);
 }
 
+std::pair<Vector, double> calculateDisplacement(const Circle& circle, const Point& P1, const Point& P2) {
+    auto dx = P2.x - P1.x;
+    auto dy = P2.y - P1.y;
+    Vector normal = Point(-dy, dx);
+    normal /= normal.length(); // normalize vector
+    double displacement = circle.r - triangleHeight(circle.centre, P1, P2);
+    return std::make_pair(normal, displacement);
+}
+
 void Game::moveAlongNormal(Player& player1, Player& player2) {
     const auto& [displacement_vector, displacement] = calculateDisplacement(player1, player2);
     double half_displacement = displacement / 2;
     player1.centre += displacement_vector * half_displacement;
     player2.centre += displacement_vector * half_displacement * -1;
+}
+
+void Game::moveAlongNormal(Player& player, const Point& P1, const Point& P2) {
+    const auto& [displacement_vector, displacement] = calculateDisplacement(player, P1, P2);
+    player.centre += displacement_vector * displacement;
 }
 
 void Game::moveAlongNormal(Player& player, const Circle& object) {
@@ -456,12 +504,14 @@ Message Game::serializeGameState() {
 Message Game::serializeMap() {
     uint16_t walls_size = static_cast<uint16_t>(game_map.walls.size());
     uint16_t obstacles_size = static_cast<uint16_t>(game_map.obstacles.size());
-    unsigned char* buf = new unsigned char[5 + walls_size * sizeof(Rectangle) + obstacles_size * sizeof(Circle)];
+    uint16_t borders_size = static_cast<uint16_t>(game_map.borders.size());
+    unsigned char* buf = new unsigned char[7 + walls_size * sizeof(Rectangle) + obstacles_size * sizeof(Circle) + borders_size * sizeof(Point)];
     uint32_t size = 0;
     Message message = {.data = buf};
     size += copyToBuf<uint8_t>(buf, DataType::GAME_MAP);
     size += copyToBuf<uint16_t>(buf, walls_size);
     size += copyToBuf<uint16_t>(buf, obstacles_size);
+    size += copyToBuf<uint16_t>(buf, borders_size);
     for(const auto& wall : game_map.walls) {
         for(int i = 0; i < 4; ++i)
             size += copyToBuf<double>(buf, wall.points[i]);
@@ -469,6 +519,9 @@ Message Game::serializeMap() {
     for(const auto& obstacle : game_map.obstacles) {
         size += copyToBuf<double>(buf, obstacle.centre);
         size += copyToBuf<double>(buf, obstacle.r);
+    }
+    for(const auto& point : game_map.borders) {
+        size += copyToBuf<double>(buf, point);
     }
     message.size = size;
     return message;
