@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import os
 from collections import namedtuple
 from enum import Flag, IntEnum, auto
 import math
@@ -95,6 +97,10 @@ class Player:
         self.velocity: Vector = velocity
         self.orientation_angle: float = orientation_angle
         self.health_ratio = health / 100  # 100 = max_health
+        #name taki jak nazwa uzytkownika
+        self.name = os.getenv('username')
+        self.deaths = 0
+        self.kills = 0
 
     def __str__(self) -> str:
         return f"""id={self.id}, alive={self.alive}, health={self.health}, position={self.position}, velocity={self.velocity}, orientation_angle={self.orientation_angle}."""

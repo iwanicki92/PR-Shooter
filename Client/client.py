@@ -10,7 +10,7 @@ from io import BytesIO
 from game_objects import *
 
 class Game:
-    def __init__(self):
+    def __init__(self, latency=0):
         self.direction = Direction.NONE
         self.angle = 0
         self.player_radius = 10
@@ -21,6 +21,11 @@ class Game:
         self.my_own_id = -1
         self.draw_offset: Point = Point(0, 0)
         self.s_connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.background_color = (211,211,211)
+        self.display_scores = False
+        self.latency = latency
+
+
         try:
             self.s_connection.connect(('localhost', 5000))
             self.connected = True
@@ -69,6 +74,8 @@ class Game:
                     self.change_movement(Direction.DOWN, True)
                 if event.key == pygame.K_SPACE:
                     self.send_message(DataType.SPAWN)
+                if event.key == pygame.K_TAB:
+                    self.display_scores = True
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_a:
@@ -81,6 +88,8 @@ class Game:
                     self.change_movement(Direction.DOWN, False)
                 if event.key == pygame.K_ESCAPE:
                     self.run = False
+                if event.key == pygame.K_TAB:
+                    self.display_scores = False
 
     def start_game(self):
         pygame.init()
@@ -181,8 +190,20 @@ class Game:
         for player in self.game_state.players:
             if player.alive == False:
                 continue
-            color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
+
+
+            color = (128,128,128)
             pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius)
+            color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
+            pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius*0.85)
+
+            # hp_bar
+            color_hp_bar = (255, 0, 0) if player.id != self.my_own_id else (0, 255, 0)
+            pygame.draw.rect(self.display, (64, 64 ,64), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 55, 100, 15))  # background
+            pygame.draw.rect(self.display, color_hp_bar, pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 55, 100 * player.health_ratio, 15))  # health_bar
+            pygame.draw.rect(self.display, (0,0,0), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 55, 100, 15), 2)  # border
+
+
 
             #Weapon size and offset
             weapon_len = 40
@@ -191,9 +212,9 @@ class Game:
             weapon_vertical_offset = 0
 
             #Polygon representing a weapon
-            weapon_poly = [Point(player.position.x- weapon_vertical_offset, player.position.y - weapon_side_offset),
-                           Point(player.position.x- weapon_vertical_offset, player.position.y - weapon_side_offset - weapon_width),
-                           Point(player.position.x + weapon_len- weapon_vertical_offset, player.position.y- weapon_side_offset - weapon_width),
+            weapon_poly = [Point(player.position.x - weapon_vertical_offset, player.position.y - weapon_side_offset),
+                           Point(player.position.x - weapon_vertical_offset, player.position.y - weapon_side_offset - weapon_width),
+                           Point(player.position.x + weapon_len - weapon_vertical_offset, player.position.y - weapon_side_offset - weapon_width),
                            Point(player.position.x + weapon_len - weapon_vertical_offset, player.position.y - weapon_side_offset)]
 
             #pivot point and angle of rotation definition
@@ -209,14 +230,53 @@ class Game:
             #draw weapon
             pygame.draw.polygon(self.display, (0,0,0), weapon_poly)
 
-            # hp_bar
-            color_hp_bar = (255, 0, 0) if player.id != self.my_own_id else (0, 255, 0)
-            pygame.draw.rect(self.display, (64, 64 ,64), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 50, 100, 15))  # background
-            pygame.draw.rect(self.display, color_hp_bar, pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 50, 100 * player.health_ratio, 15))  # health_bar
-            pygame.draw.rect(self.display, (0,0,0), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 50, 100, 15), 2)  # border
+
+        #scores
+        if self.display_scores:
+            #background
+            scores_background = (self.display.get_size()[0] / 3, self.display.get_size()[1]/4,self.display.get_size()[0]/3,self.display.get_size()[1]/3)
+            rect_alpha = pygame.Surface(pygame.Rect(scores_background).size, pygame.SRCALPHA)
+            pygame.draw.rect(rect_alpha, (105,105,105, 155), rect_alpha.get_rect())
+            #Text
+            text_color = (105,105,105)
+            # latency
+            font_latency = pygame.font.Font('freesansbold.ttf', 20)
+            latency_text = font_latency.render(f'latency: {self.latency} ms', True, text_color)
+            latency_text_rect = latency_text.get_rect()
+            latency_text_rect.center = (self.display.get_size()[0] / 3 * 1.15, self.display.get_size()[1] / 4 + 40)
+
+            self.display.blit(latency_text, latency_text_rect)
+
+            #title
+            font_title = pygame.font.Font('freesansbold.ttf', 32)
+            title = font_title.render('Scores:', True, text_color)
+            titleRect = title.get_rect()
+            titleRect.center = (self.display.get_size()[0]/2, self.display.get_size()[1]/4 + 64)
+
+            self.display.blit(title, titleRect)
+
+            #player scores
+            font_scores = pygame.font.Font('freesansbold.ttf', 20)
+            for idx, player in enumerate(self.game_state.players):
+
+                #TODO: limit wyświetlanych wyników
+                #calculate KD
+                KD =  player.kills/(player.deaths+1)
+
+                player_score_text = font_scores.render(f'{idx+1}. {player.name}: kills - {player.kills}, deaths - {player.deaths}, KD - {KD}', True, text_color)
+                player_score_rect = player_score_text.get_rect()
+                player_score_rect.center = (self.display.get_size()[0]/2, self.display.get_size()[1]/4 + 64 + (idx+1)*30)
+                self.display.blit(player_score_text,player_score_rect)
+
+            self.display.blit(rect_alpha, scores_background)
+
+
+
+
+
 
         pygame.display.update()
-        self.display.fill((255,255,255))
+        self.display.fill(self.background_color)
 
 
     def send_message(self, data_type: Literal[DataType.SPAWN, DataType.SHOOT, DataType.CHANGE_ORIENTATION, DataType.CHANGE_MOVEMENT_DIRECTION]):
