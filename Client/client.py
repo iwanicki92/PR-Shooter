@@ -120,12 +120,6 @@ class Game:
         pygame.quit()
 
     def drawGame(self):
-        for player in self.game_state.players:
-            if player.alive == False:
-                continue
-            color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
-            pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius)
-
         for projectile in self.game_state.projectiles:
             pygame.draw.circle(self.display, (255, 165, 0), sub_points(projectile.position, self.draw_offset), self.projectile_radius)
 
@@ -137,7 +131,18 @@ class Game:
 
         if len(self.map.border) > 1:
             pygame.draw.polygon(self.display, (0,0,0), [sub_points(point, self.draw_offset) for point in self.map.border], 5)
-        
+
+        for player in self.game_state.players:
+            if player.alive == False:
+                continue
+            color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
+            pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius)
+            # hp_bar
+            color_hp_bar = (255, 0, 0) if player.id != self.my_own_id else (0, 255, 0)
+            pygame.draw.rect(self.display, (64, 64 ,64), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 50, 100, 15))  # background
+            pygame.draw.rect(self.display, color_hp_bar, pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 50, 100 * player.health_ratio, 15))  # health_bar
+            pygame.draw.rect(self.display, (0,0,0), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 50, 100, 15), 2)  # border
+
         pygame.display.update()
         self.display.fill((255,255,255))
 

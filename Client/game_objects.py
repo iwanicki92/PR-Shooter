@@ -94,6 +94,7 @@ class Player:
         self.position: Point = position
         self.velocity: Vector = velocity
         self.orientation_angle: float = orientation_angle
+        self.health_ratio = health / 100  # 100 = max_health
 
     def __str__(self) -> str:
         return f"""id={self.id}, alive={self.alive}, health={self.health}, position={self.position}, velocity={self.velocity}, orientation_angle={self.orientation_angle}."""
