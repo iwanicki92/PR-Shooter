@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import math
 import struct
 import time
 from typing import Literal
@@ -120,6 +122,50 @@ class Game:
         pygame.quit()
 
     def drawGame(self):
+
+        def rotate_polygon(points, angle, pivot):
+            """
+            :param points: list of points representing polygon vertices
+            :param angle: angle of rotation (radians)
+            :param pivot: pivot point (around which we rotate the polygon)
+            """
+            new_points = []
+            sine = math.sin(angle)
+            cosine = math.cos(angle)
+            for point in points:
+                temp_x = point.x
+                temp_y = point.y
+
+                temp_x -= pivot.x
+                temp_y -= pivot.y
+
+                new_x = temp_x * cosine - temp_y * sine
+                new_y = temp_x * sine + temp_y * cosine
+
+                new_x += pivot.x
+                new_y += pivot.y
+
+                new_points.append(Point(new_x,new_y))
+
+            return new_points
+
+        def translate_polygon(points, vector):
+            """
+            :param points: list of points representing polygon vertices
+            :param vector: translation vector
+
+            This method ADDS vector's value to all points
+            """
+            new_poly = []
+            for point in points:
+                temp_x = point.x
+                temp_y = point.y
+                temp_x += vector.x
+                temp_y += vector.y
+                new_poly.append(Point(temp_x, temp_y))
+            return new_poly
+
+
         for projectile in self.game_state.projectiles:
             pygame.draw.circle(self.display, (255, 165, 0), sub_points(projectile.position, self.draw_offset), self.projectile_radius)
 
@@ -137,6 +183,32 @@ class Game:
                 continue
             color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
             pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius)
+
+            #Weapon size and offset
+            weapon_len = 40
+            weapon_width = 7
+            weapon_side_offset = -0.5 * weapon_width  #0.9 * self.player_radius - jeżeli chcemy mieć z boku
+            weapon_vertical_offset = 0
+
+            #Polygon representing a weapon
+            weapon_poly = [Point(player.position.x- weapon_vertical_offset, player.position.y - weapon_side_offset),
+                           Point(player.position.x- weapon_vertical_offset, player.position.y - weapon_side_offset - weapon_width),
+                           Point(player.position.x + weapon_len- weapon_vertical_offset, player.position.y- weapon_side_offset - weapon_width),
+                           Point(player.position.x + weapon_len - weapon_vertical_offset, player.position.y - weapon_side_offset)]
+
+            #pivot point and angle of rotation definition
+            pivot_point = player.position
+            rotation_angle = player.orientation_angle
+
+            #polygon rotation
+            weapon_poly = rotate_polygon(weapon_poly, rotation_angle, pivot_point)
+
+            #polygon translation (draw_offset)
+            weapon_poly = translate_polygon(weapon_poly, Point(-self.draw_offset.x,-self.draw_offset.y))
+
+            #draw weapon
+            pygame.draw.polygon(self.display, (0,0,0), weapon_poly)
+
             # hp_bar
             color_hp_bar = (255, 0, 0) if player.id != self.my_own_id else (0, 255, 0)
             pygame.draw.rect(self.display, (64, 64 ,64), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 50, 100, 15))  # background
