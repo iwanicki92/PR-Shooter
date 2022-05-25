@@ -8,11 +8,7 @@ import math
 Point = namedtuple('Point', ['x', 'y'], defaults=[0,0])
 Vector = Point
 
-def add_points(a: Point, b: Point) -> Point:
-    return Point(a.x + b.x, a.y + b.y)
 
-def sub_points(a: Point, b: Point) -> Point:
-    return Point(a.x - b.x, a.y - b.y)
 
 class Direction(Flag):
     LEFT = auto()

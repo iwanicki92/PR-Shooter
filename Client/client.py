@@ -8,7 +8,7 @@ import pygame
 import socket
 from io import BytesIO
 from game_objects import *
-
+from drawing_utils import *
 class Game:
     def __init__(self, latency=0):
         self.direction = Direction.NONE
@@ -41,48 +41,6 @@ class Game:
     
     def calculateOrientationAngle(self, player_position: Point, mouse_position: Point):
         return math.atan2(-(player_position.y - mouse_position.y), mouse_position.x - player_position.x)
-
-    def rotate_polygon(self, points, angle, pivot):
-        """
-        :param points: list of points representing polygon vertices
-        :param angle: angle of rotation (radians)
-        :param pivot: pivot point (around which we rotate the polygon)
-        """
-        new_points = []
-        sine = math.sin(angle)
-        cosine = math.cos(angle)
-        for point in points:
-            temp_x = point.x
-            temp_y = point.y
-
-            temp_x -= pivot.x
-            temp_y -= pivot.y
-
-            new_x = temp_x * cosine - temp_y * sine
-            new_y = temp_x * sine + temp_y * cosine
-
-            new_x += pivot.x
-            new_y += pivot.y
-
-            new_points.append(Point(new_x, new_y))
-
-        return new_points
-
-    def translate_polygon(self, points, vector):
-        """
-        :param points: list of points representing polygon vertices
-        :param vector: translation vector
-
-        This method ADDS vector's value to all points
-        """
-        new_poly = []
-        for point in points:
-            temp_x = point.x
-            temp_y = point.y
-            temp_x += vector.x
-            temp_y += vector.y
-            new_poly.append(Point(temp_x, temp_y))
-        return new_poly
 
     def change_movement(self, dir: Direction, add: bool):
         if add == True:
@@ -159,7 +117,7 @@ class Game:
             no_receive +=1
 
             start = time.perf_counter_ns()
-            self.drawGame()
+            self.draw_game()
             total_draw += time.perf_counter_ns() - start
             no_draw += 1
 
@@ -171,7 +129,7 @@ class Game:
 
         pygame.quit()
 
-    def drawGame(self):
+    def draw_game(self):
         #draw projectiles
         for projectile in self.game_state.projectiles:
             pygame.draw.circle(self.display, (255, 165, 0), sub_points(projectile.position, self.draw_offset), self.projectile_radius)
@@ -269,10 +227,10 @@ class Game:
         rotation_angle = player.orientation_angle
 
         # polygon rotation
-        weapon_poly = self.rotate_polygon(weapon_poly, rotation_angle, pivot_point)
+        weapon_poly = rotate_polygon(weapon_poly, rotation_angle, pivot_point)
 
         # polygon translation (draw_offset)
-        weapon_poly = self.translate_polygon(weapon_poly, Point(-self.draw_offset.x, -self.draw_offset.y))
+        weapon_poly = translate_polygon(weapon_poly, Point(-self.draw_offset.x, -self.draw_offset.y))
 
         # draw weapon
         pygame.draw.polygon(self.display, (0, 0, 0), weapon_poly)
