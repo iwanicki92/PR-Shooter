@@ -42,6 +42,47 @@ class Game:
     def calculateOrientationAngle(self, player_position: Point, mouse_position: Point):
         return math.atan2(-(player_position.y - mouse_position.y), mouse_position.x - player_position.x)
 
+    def rotate_polygon(self, points, angle, pivot):
+        """
+        :param points: list of points representing polygon vertices
+        :param angle: angle of rotation (radians)
+        :param pivot: pivot point (around which we rotate the polygon)
+        """
+        new_points = []
+        sine = math.sin(angle)
+        cosine = math.cos(angle)
+        for point in points:
+            temp_x = point.x
+            temp_y = point.y
+
+            temp_x -= pivot.x
+            temp_y -= pivot.y
+
+            new_x = temp_x * cosine - temp_y * sine
+            new_y = temp_x * sine + temp_y * cosine
+
+            new_x += pivot.x
+            new_y += pivot.y
+
+            new_points.append(Point(new_x, new_y))
+
+        return new_points
+
+    def translate_polygon(self, points, vector):
+        """
+        :param points: list of points representing polygon vertices
+        :param vector: translation vector
+
+        This method ADDS vector's value to all points
+        """
+        new_poly = []
+        for point in points:
+            temp_x = point.x
+            temp_y = point.y
+            temp_x += vector.x
+            temp_y += vector.y
+            new_poly.append(Point(temp_x, temp_y))
+        return new_poly
 
     def change_movement(self, dir: Direction, add: bool):
         if add == True:
@@ -131,153 +172,134 @@ class Game:
         pygame.quit()
 
     def drawGame(self):
-
-        def rotate_polygon(points, angle, pivot):
-            """
-            :param points: list of points representing polygon vertices
-            :param angle: angle of rotation (radians)
-            :param pivot: pivot point (around which we rotate the polygon)
-            """
-            new_points = []
-            sine = math.sin(angle)
-            cosine = math.cos(angle)
-            for point in points:
-                temp_x = point.x
-                temp_y = point.y
-
-                temp_x -= pivot.x
-                temp_y -= pivot.y
-
-                new_x = temp_x * cosine - temp_y * sine
-                new_y = temp_x * sine + temp_y * cosine
-
-                new_x += pivot.x
-                new_y += pivot.y
-
-                new_points.append(Point(new_x,new_y))
-
-            return new_points
-
-        def translate_polygon(points, vector):
-            """
-            :param points: list of points representing polygon vertices
-            :param vector: translation vector
-
-            This method ADDS vector's value to all points
-            """
-            new_poly = []
-            for point in points:
-                temp_x = point.x
-                temp_y = point.y
-                temp_x += vector.x
-                temp_y += vector.y
-                new_poly.append(Point(temp_x, temp_y))
-            return new_poly
-
-
+        #draw projectiles
         for projectile in self.game_state.projectiles:
             pygame.draw.circle(self.display, (255, 165, 0), sub_points(projectile.position, self.draw_offset), self.projectile_radius)
-
+        #draw obstacles
         for obstacle in self.map.obstacles:
             pygame.draw.circle(self.display, (0,0,0), sub_points(obstacle.position, self.draw_offset), obstacle.radius)
-        
+        #draw walls
         for wall in self.map.walls:
             pygame.draw.polygon(self.display, (0,0,0), [sub_points(vertex, self.draw_offset) for vertex in wall.vertices])
-
+        #draw map border
         if len(self.map.border) > 1:
             pygame.draw.polygon(self.display, (0,0,0), [sub_points(point, self.draw_offset) for point in self.map.border], 5)
-
+        #draw alive players
         for player in self.game_state.players:
             if player.alive == False:
                 continue
-
-
-            color = (128,128,128)
-            pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius)
-            color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
-            pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius*0.85)
-
-            # hp_bar
-            color_hp_bar = (255, 0, 0) if player.id != self.my_own_id else (0, 255, 0)
-            pygame.draw.rect(self.display, (64, 64 ,64), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 55, 100, 15))  # background
-            pygame.draw.rect(self.display, color_hp_bar, pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 55, 100 * player.health_ratio, 15))  # health_bar
-            pygame.draw.rect(self.display, (0,0,0), pygame.Rect(player.position.x - self.draw_offset.x - 50, player.position.y - self.draw_offset.y - 55, 100, 15), 2)  # border
-
-
-
-            #Weapon size and offset
-            weapon_len = 40
-            weapon_width = 7
-            weapon_side_offset = -0.5 * weapon_width  #0.9 * self.player_radius - jeżeli chcemy mieć z boku
-            weapon_vertical_offset = 0
-
-            #Polygon representing a weapon
-            weapon_poly = [Point(player.position.x - weapon_vertical_offset, player.position.y - weapon_side_offset),
-                           Point(player.position.x - weapon_vertical_offset, player.position.y - weapon_side_offset - weapon_width),
-                           Point(player.position.x + weapon_len - weapon_vertical_offset, player.position.y - weapon_side_offset - weapon_width),
-                           Point(player.position.x + weapon_len - weapon_vertical_offset, player.position.y - weapon_side_offset)]
-
-            #pivot point and angle of rotation definition
-            pivot_point = player.position
-            rotation_angle = player.orientation_angle
-
-            #polygon rotation
-            weapon_poly = rotate_polygon(weapon_poly, rotation_angle, pivot_point)
-
-            #polygon translation (draw_offset)
-            weapon_poly = translate_polygon(weapon_poly, Point(-self.draw_offset.x,-self.draw_offset.y))
-
-            #draw weapon
-            pygame.draw.polygon(self.display, (0,0,0), weapon_poly)
-
-
-        #scores
+            self.draw_player(player)
+        #displaay scores if requested
         if self.display_scores:
-            #background
-            scores_background = (self.display.get_size()[0] / 3, self.display.get_size()[1]/4,self.display.get_size()[0]/3,self.display.get_size()[1]/3)
-            rect_alpha = pygame.Surface(pygame.Rect(scores_background).size, pygame.SRCALPHA)
-            pygame.draw.rect(rect_alpha, (105,105,105, 155), rect_alpha.get_rect())
-            #Text
-            text_color = (105,105,105)
-            # latency
-            font_latency = pygame.font.Font('freesansbold.ttf', 20)
-            latency_text = font_latency.render(f'latency: {self.latency} ms', True, text_color)
-            latency_text_rect = latency_text.get_rect()
-            latency_text_rect.center = (self.display.get_size()[0] / 3 * 1.15, self.display.get_size()[1] / 4 + 40)
-
-            self.display.blit(latency_text, latency_text_rect)
-
-            #title
-            font_title = pygame.font.Font('freesansbold.ttf', 32)
-            title = font_title.render('Scores:', True, text_color)
-            titleRect = title.get_rect()
-            titleRect.center = (self.display.get_size()[0]/2, self.display.get_size()[1]/4 + 64)
-
-            self.display.blit(title, titleRect)
-
-            #player scores
-            font_scores = pygame.font.Font('freesansbold.ttf', 20)
-            for idx, player in enumerate(self.game_state.players):
-
-                #TODO: limit wyświetlanych wyników
-                #calculate KD
-                KD =  player.kills/(player.deaths+1)
-
-                player_score_text = font_scores.render(f'{idx+1}. {player.name}: kills - {player.kills}, deaths - {player.deaths}, KD - {KD}', True, text_color)
-                player_score_rect = player_score_text.get_rect()
-                player_score_rect.center = (self.display.get_size()[0]/2, self.display.get_size()[1]/4 + 64 + (idx+1)*30)
-                self.display.blit(player_score_text,player_score_rect)
-
-            self.display.blit(rect_alpha, scores_background)
-
-
-
-
-
+            self.draw_scores()
 
         pygame.display.update()
         self.display.fill(self.background_color)
 
+    def draw_scores(self):
+        # background (semi-transaparent, grey rectangle)
+        scores_background = (
+        self.display.get_size()[0] / 3, self.display.get_size()[1] / 4, self.display.get_size()[0] / 3,
+        self.display.get_size()[1] / 3)
+        rect_alpha = pygame.Surface(pygame.Rect(scores_background).size, pygame.SRCALPHA)
+        pygame.draw.rect(rect_alpha, (105, 105, 105, 155), rect_alpha.get_rect())
+        # Text
+        text_color = (105, 105, 105)
+
+        # latency
+        font_latency = pygame.font.Font('freesansbold.ttf', 20)
+        latency_text = font_latency.render(f'latency: {self.latency} ms', True, text_color)
+        latency_text_rect = latency_text.get_rect()
+        latency_text_rect.center = (self.display.get_size()[0] / 3 * 1.15, self.display.get_size()[1] / 4 + 40)
+
+        self.display.blit(latency_text, latency_text_rect)
+
+        # title
+        font_title = pygame.font.Font('freesansbold.ttf', 32)
+        title = font_title.render('Scores:', True, text_color)
+        titleRect = title.get_rect()
+        titleRect.center = (self.display.get_size()[0] / 2, self.display.get_size()[1] / 4 + 64)
+
+        self.display.blit(title, titleRect)
+
+        # player scores
+        font_scores = pygame.font.Font('freesansbold.ttf', 20)
+
+        # list of players sorted descending by their KD
+        players_sorted_by_score = sorted(self.game_state.players, key=lambda x: (x.kills / (x.deaths + 1)),
+                                         reverse=True)
+        # displaying top5 players by KD
+        for idx, player in enumerate(players_sorted_by_score[:5]):
+            # calculate KD
+            KD = player.kills / (player.deaths + 1)
+            # different color for your score
+            text_color = (105, 105, 105) if player.id != self.my_own_id else (0, 0, 255)
+            player_score_text = font_scores.render(
+                f'{idx + 1}. {player.name}: kills - {player.kills}, deaths - {player.deaths}, KD - {KD}', True,
+                text_color)
+            player_score_rect = player_score_text.get_rect()
+            player_score_rect.center = (
+            self.display.get_size()[0] / 2, self.display.get_size()[1] / 4 + 64 + (idx + 1) * 30)
+            self.display.blit(player_score_text, player_score_rect)
+
+            self.display.blit(rect_alpha, scores_background)
+        return
+
+    def draw_wepon(self, player):
+        """
+        :param player: which player weapon are we drawing
+        """
+        # Weapon size and offset
+        weapon_len = 40
+        weapon_width = 7
+        weapon_side_offset = -0.5 * weapon_width  # 0.9 * self.player_radius - jeżeli chcemy mieć z boku
+        weapon_vertical_offset = 0
+
+        # Polygon representing a weapon
+        weapon_poly = [Point(player.position.x - weapon_vertical_offset, player.position.y - weapon_side_offset),
+                       Point(player.position.x - weapon_vertical_offset,
+                             player.position.y - weapon_side_offset - weapon_width),
+                       Point(player.position.x + weapon_len - weapon_vertical_offset,
+                             player.position.y - weapon_side_offset - weapon_width),
+                       Point(player.position.x + weapon_len - weapon_vertical_offset,
+                             player.position.y - weapon_side_offset)]
+
+        # pivot point and angle of rotation definition
+        pivot_point = player.position
+        rotation_angle = player.orientation_angle
+
+        # polygon rotation
+        weapon_poly = self.rotate_polygon(weapon_poly, rotation_angle, pivot_point)
+
+        # polygon translation (draw_offset)
+        weapon_poly = self.translate_polygon(weapon_poly, Point(-self.draw_offset.x, -self.draw_offset.y))
+
+        # draw weapon
+        pygame.draw.polygon(self.display, (0, 0, 0), weapon_poly)
+
+    def draw_player(self, player):
+        """
+        :param player: player we want to draw
+        """
+        #choose a color blue if yourslef, red if enemy
+        color = (255, 0, 0) if player.id != self.my_own_id else (0, 0, 255)
+
+        pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius)
+        color = (0, 0, 0)
+        pygame.draw.circle(self.display, color, sub_points(player.position, self.draw_offset), self.player_radius, 3)
+
+        # hp_bar (color different if enemy
+        color_hp_bar = (255, 0, 0) if player.id != self.my_own_id else (0, 255, 0)
+        pygame.draw.rect(self.display, (64, 64, 64), pygame.Rect(player.position.x - self.draw_offset.x - 50,
+                                                                 player.position.y - self.draw_offset.y - 55, 100,
+                                                                 15))  # background
+        pygame.draw.rect(self.display, color_hp_bar, pygame.Rect(player.position.x - self.draw_offset.x - 50,
+                                                                 player.position.y - self.draw_offset.y - 55,
+                                                                 100 * player.health_ratio, 15))  # health_bar
+        pygame.draw.rect(self.display, (0, 0, 0), pygame.Rect(player.position.x - self.draw_offset.x - 50,
+                                                              player.position.y - self.draw_offset.y - 55, 100, 15),2)  # border
+        #draw player's weapon
+        self.draw_wepon(player)
 
     def send_message(self, data_type: Literal[DataType.SPAWN, DataType.SHOOT, DataType.CHANGE_ORIENTATION, DataType.CHANGE_MOVEMENT_DIRECTION]):
         if self.connected == False:

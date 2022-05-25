@@ -98,9 +98,9 @@ class Player:
         self.orientation_angle: float = orientation_angle
         self.health_ratio = health / 100  # 100 = max_health
         #name taki jak nazwa uzytkownika
-        self.name = os.getenv('username')
+        self.name = 'Player' + str(self.id)
         self.deaths = 0
-        self.kills = 0
+        self.kills = 100 - self.id
 
     def __str__(self) -> str:
         return f"""id={self.id}, alive={self.alive}, health={self.health}, position={self.position}, velocity={self.velocity}, orientation_angle={self.orientation_angle}."""
