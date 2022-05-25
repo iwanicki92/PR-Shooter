@@ -13,6 +13,7 @@ enum DataType {
     SHOOT = 11,
     CHANGE_ORIENTATION = 12,
     CHANGE_MOVEMENT_DIRECTION = 13,
+    PING = 14,
 
     OTHER = 999
 };

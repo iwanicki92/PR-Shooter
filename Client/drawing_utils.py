@@ -1,5 +1,4 @@
 import math
-
 from game_objects import Point
 
 def add_points(a: Point, b: Point) -> Point:
@@ -49,3 +48,6 @@ def translate_polygon( points, vector):
         temp_y += vector.y
         new_poly.append(Point(temp_x, temp_y))
     return new_poly
+
+def average(x) -> float:
+    return sum(x) / len(x)

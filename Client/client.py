@@ -1,16 +1,17 @@
 from __future__ import annotations
-
+from collections import deque
 import math
 import struct
 import time
-from typing import Literal
 import pygame
 import socket
+from typing import Literal
 from io import BytesIO
 from game_objects import *
 from drawing_utils import *
+
 class Game:
-    def __init__(self, latency=0):
+    def __init__(self):
         self.direction = Direction.NONE
         self.angle = 0
         self.player_radius = 10
@@ -21,10 +22,11 @@ class Game:
         self.my_own_id = -1
         self.draw_offset: Point = Point(0, 0)
         self.s_connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.background_color = (211,211,211)
+        self.background_color = (255,255,255)
         self.display_scores = False
-        self.latency = latency
-
+        self.latency: deque[float] = deque([0], maxlen=15)
+        self.last_ping: tuple[int, float] = 0, time.perf_counter()
+        self.ping_period = 0.2
 
         try:
             self.s_connection.connect(('localhost', 5000))
@@ -93,7 +95,7 @@ class Game:
     def start_game(self):
         pygame.init()
 
-        self.display = pygame.display.set_mode((0,0), pygame.RESIZABLE)
+        self.display = pygame.display.set_mode((800,600), pygame.RESIZABLE)
         self.display_width, self.display_height = self.display.get_size()
         self.display.fill((255,255,255))
 
@@ -121,6 +123,9 @@ class Game:
             total_draw += time.perf_counter_ns() - start
             no_draw += 1
 
+            if time.perf_counter() - self.last_ping[1] > self.ping_period:
+                self.send_message(DataType.PING)
+
             if time.perf_counter() - print_time > 2:
                 print('Average event handler time: '.rjust(30) + f'{total_event_handler / (no_event_handler * 1e6):10.04f} ms')
                 print('Average message receive time: '.rjust(30) + f'{total_receive / (no_receive * 1e6):10.04f} ms')
@@ -147,7 +152,7 @@ class Game:
             if player.alive == False:
                 continue
             self.draw_player(player)
-        #displaay scores if requested
+        #display scores if requested
         if self.display_scores:
             self.draw_scores()
 
@@ -166,7 +171,7 @@ class Game:
 
         # latency
         font_latency = pygame.font.Font('freesansbold.ttf', 20)
-        latency_text = font_latency.render(f'latency: {self.latency} ms', True, text_color)
+        latency_text = font_latency.render(f'latency: {average(self.latency) * 1000 : .02f} ms', True, text_color)
         latency_text_rect = latency_text.get_rect()
         latency_text_rect.center = (self.display.get_size()[0] / 3 * 1.15, self.display.get_size()[1] / 4 + 40)
 
@@ -203,7 +208,7 @@ class Game:
             self.display.blit(rect_alpha, scores_background)
         return
 
-    def draw_wepon(self, player):
+    def draw_weapon(self, player):
         """
         :param player: which player weapon are we drawing
         """
@@ -257,9 +262,9 @@ class Game:
         pygame.draw.rect(self.display, (0, 0, 0), pygame.Rect(player.position.x - self.draw_offset.x - 50,
                                                               player.position.y - self.draw_offset.y - 55, 100, 15),2)  # border
         #draw player's weapon
-        self.draw_wepon(player)
+        self.draw_weapon(player)
 
-    def send_message(self, data_type: Literal[DataType.SPAWN, DataType.SHOOT, DataType.CHANGE_ORIENTATION, DataType.CHANGE_MOVEMENT_DIRECTION]):
+    def send_message(self, data_type: DataType):
         if self.connected == False:
             return
         if data_type == DataType.SPAWN or data_type == DataType.SHOOT:
@@ -269,6 +274,10 @@ class Game:
         elif data_type == DataType.CHANGE_MOVEMENT_DIRECTION:
             msg = bytes([17, 0, 0, 0, data_type]) + struct.pack('d', directionToVelocity[self.direction].x) + struct.pack('d', directionToVelocity[self.direction].y)
             self.s_connection.send(msg)
+        elif data_type == DataType.PING:
+            msg = bytes([3,0,0,0, data_type]) + (self.last_ping[0] + 1).to_bytes(2, 'little')
+            self.s_connection.send(msg)
+            self.last_ping = self.last_ping[0] + 1, time.perf_counter()
 
     def read_int(num: BytesIO, length: Literal[1,2,4,8]):
         return int.from_bytes(num.read(length), 'little')
@@ -301,6 +310,8 @@ class Game:
             self.projectile_radius = Game.read_float(rest, 'd')
         elif type == DataType.GAME_MAP:
             self.map = Game.get_map_from_bytes(rest)
+        elif type == DataType.PING:
+            self.latency.append(time.perf_counter() - self.last_ping[1] + (self.last_ping[0] - Game.read_int(rest, 2)) * self.ping_period)
         elif type == DataType.GAME_STATE:
             self.game_state = Game.get_gamestate_from_bytes(rest)
             player = next((player for player in self.game_state.players if player.id == self.my_own_id), None)
@@ -329,7 +340,8 @@ class Game:
         def readPlayer() -> Player:
             return Player(Game.read_int(game_state, 2), bool.from_bytes(game_state.read(1), 'little'),
                     Game.read_int(game_state, 1), Game.read_point(game_state),
-                    Game.read_point(game_state), Game.read_float(game_state, 'f'))
+                    Game.read_point(game_state), Game.read_float(game_state, 'f'),
+                    Game.read_int(game_state, 2), Game.read_int(game_state, 2))
 
         number_of_players = Game.read_int(game_state, 2)
         number_of_projectiles = Game.read_int(game_state, 2)

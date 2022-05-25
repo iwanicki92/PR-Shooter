@@ -273,6 +273,15 @@ void Game::handleMessage(IncomingMessageWrapper&& message) {
                         changePlayerMovement(message.getClientId(), *reinterpret_cast<double*>(message.getBuffer() + 1),
                                             *reinterpret_cast<double*>(message.getBuffer() + 9));
                         break;
+                    case PING:
+                    {
+                        unsigned char* buf = new unsigned char[3];
+                        Message msg = {.size = 3, .data = buf};
+                        copyToBuf<uint8_t>(buf, PING);
+                        copyToBuf<uint16_t>(buf, *reinterpret_cast<uint16_t*>(message.getBuffer() + 1));
+                        Server::sendMessageTo(msg, message.getClientId());
+                    }   
+                        break;
                     default:
                         std::cout << "UNKNOWN\n";
                         break;
@@ -305,6 +314,7 @@ void Game::spawnPlayer(size_t player_id) {
         auto dist_x = std::uniform_int_distribution(static_cast<int>(game_map.top_left.x), static_cast<int>(game_map.bottom_right.x));
         auto dist_y = std::uniform_int_distribution(static_cast<int>(game_map.top_left.y), static_cast<int>(game_map.bottom_right.y));
         player.alive = true;
+        player.health = 100;
         do {
         player.centre = Point(dist_x(r_engine), dist_y(r_engine));
         } while(!isInsideBorder(player.centre));
@@ -422,6 +432,8 @@ bool Game::checkProjectileCollisions(const Projectile& projectile) {
         if(player.alive == true && player_id != projectile.owner_id && checkCollision(projectile, player)) {
             if(player.health <= Constants::projectile_damage) {
                 player.alive = false;
+                ++player.deaths;
+                ++players[projectile.owner_id].kills;
             } else {
                 player.health -= Constants::projectile_damage;
             }
@@ -507,6 +519,8 @@ Message Game::serializeGameState() {
         size += copyToBuf<double>(buf, player.getPosition());
         size += copyToBuf<double>(buf, player.velocity);
         size += copyToBuf<float>(buf, player.orientation_angle);
+        size += copyToBuf<uint16_t>(buf, player.kills);
+        size += copyToBuf<uint16_t>(buf, player.deaths);
     }
     for(const auto& projectile : projectiles) {
         size += copyToBuf<uint16_t>(buf, projectile.owner_id);

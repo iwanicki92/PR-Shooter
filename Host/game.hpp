@@ -26,6 +26,8 @@ struct Player : Circle {
     uint8_t health = 100;
     Vector velocity = {0, 0};
     float orientation_angle = 0;
+    uint16_t kills = 0;
+    uint16_t deaths = 0;
 
     Player(size_t player_id = 0);
     Point& getPosition();

@@ -56,6 +56,7 @@ class DataType(IntEnum):
     SHOOT = 11,
     CHANGE_ORIENTATION = 12,
     CHANGE_MOVEMENT_DIRECTION = 13,
+    PING = 14,
 
     OTHER = 999
     
@@ -85,7 +86,7 @@ class Map:
 
 
 class Player:
-    def __init__(self, id, alive, health, position: Point, velocity: Vector, orientation_angle: float):
+    def __init__(self, id, alive, health, position: Point, velocity: Vector, orientation_angle: float, kills: int, deaths: int):
         self.id: int = id
         self.alive: bool = alive
         self.health: int = health
@@ -95,8 +96,8 @@ class Player:
         self.health_ratio = health / 100  # 100 = max_health
         #name taki jak nazwa uzytkownika
         self.name = 'Player' + str(self.id)
-        self.deaths = 0
-        self.kills = 100 - self.id
+        self.kills = kills
+        self.deaths = deaths
 
     def __str__(self) -> str:
         return f"""id={self.id}, alive={self.alive}, health={self.health}, position={self.position}, velocity={self.velocity}, orientation_angle={self.orientation_angle}."""
