@@ -2,6 +2,7 @@ from __future__ import annotations
 from collections import deque
 import math
 import struct
+import sys
 import time
 import pygame
 import socket
@@ -11,7 +12,7 @@ from game_objects import *
 from drawing_utils import *
 
 class Game:
-    def __init__(self):
+    def __init__(self, ip):
         self.direction = Direction.NONE
         self.angle = 0
         self.player_radius = 10
@@ -27,9 +28,11 @@ class Game:
         self.latency: deque[float] = deque([0], maxlen=15)
         self.last_ping: tuple[int, float] = 0, time.perf_counter()
         self.ping_period = 0.2
+        self.font = None
+        self.font_big = None
 
         try:
-            self.s_connection.connect(('localhost', 5000))
+            self.s_connection.connect((ip, 5000))
             self.connected = True
         except ConnectionRefusedError as e:
             print(e)
@@ -94,6 +97,9 @@ class Game:
 
     def start_game(self):
         pygame.init()
+        self.font = pygame.font.SysFont('freesansbold', 32)
+        self.font_big = pygame.font.SysFont('freesansbold', 48)
+
 
         self.display = pygame.display.set_mode((800,600), pygame.RESIZABLE)
         self.display_width, self.display_height = self.display.get_size()
@@ -123,7 +129,7 @@ class Game:
             total_draw += time.perf_counter_ns() - start
             no_draw += 1
 
-            if time.perf_counter() - self.last_ping[1] > self.ping_period:
+            if (time.perf_counter() - self.last_ping[1]) > self.ping_period:
                 self.send_message(DataType.PING)
 
             if time.perf_counter() - print_time > 2:
@@ -161,24 +167,30 @@ class Game:
 
     def draw_scores(self):
         # background (semi-transaparent, grey rectangle)
-        scores_background = (
-        self.display.get_size()[0] / 3, self.display.get_size()[1] / 4, self.display.get_size()[0] / 3,
-        self.display.get_size()[1] / 3)
+        x1,x2 = self.display.get_size()[0] / 2 - 300, 600
+        y1,y2 = self.display.get_size()[1] / 2 - 300, 600
+        if x1 < 0:
+            x1 = 0
+            x2 = self.display.get_size()[0]
+        if y1 < 0:
+            y1 = 0
+            y2 = self.display.get_size()[1]
+        scores_background = (x1, y1, x2, y2)
         rect_alpha = pygame.Surface(pygame.Rect(scores_background).size, pygame.SRCALPHA)
-        pygame.draw.rect(rect_alpha, (105, 105, 105, 155), rect_alpha.get_rect())
+        pygame.draw.rect(rect_alpha, (105, 105, 105, 100), rect_alpha.get_rect())
         # Text
-        text_color = (105, 105, 105)
+        text_color = (255, 0, 0)
 
         # latency
-        font_latency = pygame.font.Font('freesansbold.ttf', 20)
+        font_latency = self.font
         latency_text = font_latency.render(f'latency: {average(self.latency) * 1000 : .02f} ms', True, text_color)
         latency_text_rect = latency_text.get_rect()
-        latency_text_rect.center = (self.display.get_size()[0] / 3 * 1.15, self.display.get_size()[1] / 4 + 40)
+        latency_text_rect = (x1, y1)
 
         self.display.blit(latency_text, latency_text_rect)
 
         # title
-        font_title = pygame.font.Font('freesansbold.ttf', 32)
+        font_title = self.font_big
         title = font_title.render('Scores:', True, text_color)
         titleRect = title.get_rect()
         titleRect.center = (self.display.get_size()[0] / 2, self.display.get_size()[1] / 4 + 64)
@@ -186,7 +198,7 @@ class Game:
         self.display.blit(title, titleRect)
 
         # player scores
-        font_scores = pygame.font.Font('freesansbold.ttf', 20)
+        font_scores = self.font
 
         # list of players sorted descending by their KD
         players_sorted_by_score = sorted(self.game_state.players, key=lambda x: (x.kills / (x.deaths + 1)),
@@ -205,7 +217,7 @@ class Game:
             self.display.get_size()[0] / 2, self.display.get_size()[1] / 4 + 64 + (idx + 1) * 30)
             self.display.blit(player_score_text, player_score_rect)
 
-            self.display.blit(rect_alpha, scores_background)
+        self.display.blit(rect_alpha, scores_background)
         return
 
     def draw_weapon(self, player):
@@ -302,7 +314,11 @@ class Game:
             self.s_connection.setblocking(True)
 
         size = int.from_bytes(val, 'little')
-        rest = BytesIO(self.s_connection.recv(size))
+        rest: bytes = bytes()
+        while len(rest) < size:
+            rest += self.s_connection.recv(size - len(rest))
+        rest = BytesIO(rest)
+            
         type = Game.read_int(rest, 1)
         if type == DataType.WELCOME_MESSAGE:
             self.my_own_id = Game.read_int(rest, 2)
@@ -362,5 +378,8 @@ class Game:
                                     Game.read_point(game_state)) for _ in range(number_of_projectiles)]
         return GameState(players, projectiles)
 
-with Game() as game:
-    game.start_game()
+if __name__ == '__main__':
+    print(sys.argv)
+    ip = 'localhost' if len(sys.argv) < 2 else sys.argv[1]
+    with Game(ip) as game:
+        game.start_game()
