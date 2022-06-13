@@ -97,8 +97,8 @@ class Game:
 
     def start_game(self):
         pygame.init()
-        self.font = pygame.font.SysFont('freesansbold', 32)
-        self.font_big = pygame.font.SysFont('freesansbold', 48)
+        self.font = pygame.font.Font('freesansbold.ttf', 32)
+        self.font_big = pygame.font.Font('freesansbold.ttf', 48)
 
 
         self.display = pygame.display.set_mode((800,600), pygame.RESIZABLE)
@@ -167,8 +167,8 @@ class Game:
 
     def draw_scores(self):
         # background (semi-transaparent, grey rectangle)
-        x1,x2 = self.display.get_size()[0] / 2 - 300, 600
-        y1,y2 = self.display.get_size()[1] / 2 - 300, 600
+        x1,x2 = self.display.get_size()[0] / 2 - 500, 1000
+        y1,y2 = self.display.get_size()[1] / 2 - 400, 800
         if x1 < 0:
             x1 = 0
             x2 = self.display.get_size()[0]
@@ -210,7 +210,7 @@ class Game:
             # different color for your score
             text_color = (105, 105, 105) if player.id != self.my_own_id else (0, 0, 255)
             player_score_text = font_scores.render(
-                f'{idx + 1}. {player.name}: kills - {player.kills}, deaths - {player.deaths}, KD - {KD}', True,
+                f'{idx + 1}. {player.name}: kills - {player.kills}, deaths - {player.deaths}, KD - {KD : .02f}', True,
                 text_color)
             player_score_rect = player_score_text.get_rect()
             player_score_rect.center = (

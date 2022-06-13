@@ -8,6 +8,7 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include <limits>
 
 // set by signal handler, waited on by run()
 volatile static sig_atomic_t stop_signal = false;
@@ -145,7 +146,10 @@ void Game::getMap(std::string map_name) {
                 std::cout << "Unknown type: " << type << ", values = " << values;
         }
     }
-    double min_x, min_y, max_x, max_y;
+    double min_x = std::numeric_limits<double>::max();
+    double min_y = min_x;
+    double max_x = std::numeric_limits<double>::min();
+    double max_y = max_x;
     for(const auto& point : game_map.borders) {
         min_x = std::min(min_x, point.x);
         min_y = std::min(min_y, point.y);
