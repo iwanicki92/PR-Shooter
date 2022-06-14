@@ -1,4 +1,3 @@
-from __future__ import annotations
 from collections import deque
 import math
 import struct
@@ -6,7 +5,6 @@ import sys
 import time
 import pygame
 import socket
-from typing import Literal
 from io import BytesIO
 from game_objects import *
 from drawing_utils import *
@@ -25,8 +23,8 @@ class Game:
         self.s_connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.background_color = (255,255,255)
         self.display_scores = False
-        self.latency: deque[float] = deque([0], maxlen=15)
-        self.last_ping: tuple[int, float] = 0, time.perf_counter()
+        self.latency = deque([0], maxlen=15)
+        self.last_ping = 0, time.perf_counter()
         self.ping_period = 0.2
         self.font = None
         self.font_big = None
@@ -120,7 +118,8 @@ class Game:
             no_event_handler +=1
 
             start = time.perf_counter_ns()
-            self.receive_message()
+            while self.receive_message() == 1:
+                pass
             total_receive += time.perf_counter_ns() - start
             no_receive +=1
 
@@ -291,10 +290,10 @@ class Game:
             self.s_connection.send(msg)
             self.last_ping = self.last_ping[0] + 1, time.perf_counter()
 
-    def read_int(num: BytesIO, length: Literal[1,2,4,8]):
+    def read_int(num: BytesIO, length):
         return int.from_bytes(num.read(length), 'little')
 
-    def read_float(num: BytesIO, float_type: Literal['f', 'd']) -> float:
+    def read_float(num: BytesIO, float_type) -> float:
         buf = num.read(4) if float_type == 'f' else num.read(8)
         return struct.unpack(float_type, buf)[0]
 
@@ -303,13 +302,13 @@ class Game:
 
     def receive_message(self):
         if self.connected is False:
-            return
+            return 0
         val = []
         try:
             self.s_connection.setblocking(False)
             val = self.s_connection.recv(4)
         except socket.error as e:
-            return
+            return 0
         finally:
             self.s_connection.setblocking(True)
 
@@ -341,7 +340,7 @@ class Game:
                     self.send_message(DataType.CHANGE_ORIENTATION)
         else:
             print('Nie wiadomo co to za wiadomość')
-            pass
+        return 1
 
     def get_map_from_bytes(map: BytesIO) -> Map:
         number_of_walls = Game.read_int(map, 2)
