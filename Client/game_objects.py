@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 from collections import namedtuple
 from enum import Flag, IntEnum, auto
@@ -23,7 +21,7 @@ def add_flag(flag_a: Direction, flag_b: Direction) -> Direction:
 def remove_flag(flag_a: Direction, flag_b: Direction) -> Direction:
     return flag_a & ~flag_b
 
-directionToVelocity: dict[Direction, Vector] = {
+directionToVelocity = {
     Direction.NONE:  Vector(0, 0),
     Direction.UP:    Vector(0, -1),
     Direction.LEFT:  Vector(-1, 0),
@@ -66,7 +64,7 @@ class Circle:
         self.radius = radius
 
 class Polygon:
-    def __init__(self, vertices: list[Point]):
+    def __init__(self, vertices):
         self.vertices = vertices
 
 class Rectangle:
@@ -74,12 +72,12 @@ class Rectangle:
         self.vertices = (P1, P2, P3, P4)
 
 class Map:
-    def __init__(self, walls: list[Rectangle] = [], obstacles: list[Circle] = [], border: list[Point] = []) -> None:
+    def __init__(self, walls = [], obstacles = [], border = []) -> None:
         # wall = rectangle: ((X1, Y1), (X2, Y2), (X3, Y3), (X4, Y4))
-        self.walls: list[Rectangle] = walls
+        self.walls = walls
         # obstacle = circle: ((X, Y), R)
-        self.obstacles: list[Circle] = obstacles
-        self.border: list[Point] = border
+        self.obstacles = obstacles
+        self.border = border
 
     def __str__(self) -> str:
         return self.walls.__str__() + '\n' + self.obstacles.__str__()
@@ -118,9 +116,9 @@ class Projectile:
         return (self.owner_id, self.position, self.velocity).__str__()
 
 class GameState:
-    def __init__(self, players: list[Player] = [], projectiles: list[Projectile] = []) -> None:
-        self.players: list[Player] = players
-        self.projectiles: list[Projectile] = projectiles
+    def __init__(self, players = [], projectiles = []) -> None:
+        self.players = players
+        self.projectiles = projectiles
 
     def __str__(self) -> str:
         return f'GameState:\nPlayers    : {self.players.__str__()}\nProjectiles: {self.projectiles.__str__()}'
